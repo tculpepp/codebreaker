@@ -346,13 +346,26 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 
 | Version | Scope |
 |---|---|
-| v0.1.0 | Scaffold (`go.mod`, Makefile, staticcheck.conf, `.gitignore`, README stub) and the `code` package, fully commented with `Go note:`s |
-| v0.2.0 | `game`: Round, `Points`, `CheckRepeat`, Match (Single + to-30), coin flip |
+| ✅ v0.1.0 | Scaffold (`go.mod`, Makefile, staticcheck.conf, `.gitignore`, README stub) and the `code` package, fully commented with `Go note:`s |
+| ✅ v0.2.0 | `game`: Round, `Points`, `CheckRepeat`, Match (Single + to-30), coin flip |
 | v0.3.0 | `input`, plain UI, Human player, Computer as Maker. **First playable version: Single game, a human breaks the computer's code.** |
 | v0.4.0 | Solver, Computer as Breaker, **full Match mode against the computer** |
 | v0.5.0 | Human vs Human: hidden input and handoff |
 | v1.0.0 | Colors, Windows support, `-ascii`, flags, help, README (including the "learning Go" guide and concept map), CI on 3 OSes |
 
-## 10. Next step
+## 10. Status and next step
 
-Install Go (`brew install go`) and staticcheck. Then run `git init` and scaffold v0.1.0, writing tests first, starting with `code/color.go` and its test.
+**Done:** v0.1.0 (`code`) and v0.2.0 (`game`) are tagged. Both packages have 100% test coverage and are clean under vet and staticcheck.
+
+**How `game` differs from the sketches above:**
+- `Config.FirstMaker` is an enum type, and its zero value means a coin flip.
+- `NopObserver` is the default observer when none is given.
+- `ErrMatchOver` and `ErrInvalidSetup` are sentinel errors.
+- `Round.Abandon` ends a round when a player quits.
+- `Match` has `Seats`, `MakerIdx` and `Over` methods.
+
+**Next: v0.3.0, the first playable version.** Build these test-first:
+1. `input`: a `Prompter` with `Line`, which supports Ctrl-C through the context and the quit and help commands, plus a scripted version for tests.
+2. `ui`: a plain-text renderer with no color yet. It implements `game.Observer` and draws the board, the scoreboard, the end-of-round summary and the menu. It also has `FriendlyMessage`, and its output is checked against saved golden files.
+3. `player`: `Human` (asks for a guess, rejects invalid input and repeats without using a row) and `Computer` as codemaker (`code.Random`).
+4. `app` and `cmd/codebreaker`: just enough to play a Single game where a human breaks the computer's code.
