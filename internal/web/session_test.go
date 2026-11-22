@@ -780,6 +780,12 @@ func TestTapperMakeSecret(t *testing.T) {
 		len(v.Board.Rows) != 0 || len(v.Board.Draft) != code.Length {
 		t.Fatalf("secret screen = %+v", v)
 	}
+	// The page reads rows as a list on every board, so it must be an empty
+	// list, never null. (A null here once stopped the game after the
+	// Maker's first tap.)
+	if data, _ := json.Marshal(v); !strings.Contains(string(data), `"rows":[]`) {
+		t.Errorf("secret screen JSON has no empty rows list: %s", data)
+	}
 	for _, l := range []string{"O", "O"} {
 		s.Handle(colorEv(l))
 		v = <-views

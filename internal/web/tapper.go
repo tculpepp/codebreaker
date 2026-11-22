@@ -57,10 +57,12 @@ func (t *Tapper) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code
 	c, err := t.build(ctx, func(code.Code) error { return nil },
 		func(d *Draft, msg string) View {
 			return View{
-				Screen:  ScreenSecret,
-				Title:   "Make a secret code",
-				Lines:   []string{info.Breaker.Name + " will try to break it."},
-				Board:   &BoardView{Draft: d.Pegs(), MaxRows: info.MaxRows},
+				Screen: ScreenSecret,
+				Title:  "Make a secret code",
+				Lines:  []string{info.Breaker.Name + " will try to break it."},
+				// No rows yet, but an empty list, never null: the page reads
+				// rows as a list on every board.
+				Board:   &BoardView{Rows: []RowView{}, Draft: d.Pegs(), MaxRows: info.MaxRows},
 				Message: msg,
 				Input:   InputView{Palette: true, Undo: true, Submit: true},
 			}

@@ -30,6 +30,7 @@ package bridge
 
 import (
 	"encoding/json"
+	"fmt"
 	"syscall/js"
 
 	"github.com/tculpepp/codebreaker/internal/web"
@@ -42,7 +43,19 @@ import (
 // Go note: js.Global() is JavaScript's global object (window, in a
 // browser). Call looks up a function on it by name and calls it. Go
 // strings are converted to JavaScript strings automatically.
+//
+// If the page's drawing code throws, the error is logged to the console and
+// the game carries on: the next View may well draw fine.
 func Render(v web.View) {
+	// Go note: when JavaScript called through syscall/js throws, Call
+	// panics with a js.Error. An unrecovered panic would end the whole
+	// program and freeze the page, so recover turns it back into a log
+	// message. recover only works inside a deferred function.
+	defer func() {
+		if r := recover(); r != nil {
+			logError(fmt.Sprint("drawing the screen failed: ", r))
+		}
+	}()
 	// A View is plain data, so encoding it can't fail.
 	data, _ := json.Marshal(v)
 	js.Global().Call("codebreakerRender", string(data))

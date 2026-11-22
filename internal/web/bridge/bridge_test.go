@@ -73,6 +73,25 @@ func TestListen(t *testing.T) {
 	}
 }
 
+// TestRenderSurvivesPageErrors checks that an error in the page's drawing
+// code is logged rather than stopping the Go program: js.Value.Call panics
+// when the JavaScript it calls throws, and an unrecovered panic would end
+// the game, leaving the page frozen.
+func TestRenderSurvivesPageErrors(t *testing.T) {
+	// A page whose drawing code throws, written in JavaScript as the real
+	// page is.
+	js.Global().Call("eval", "globalThis.codebreakerRender = () => { throw new TypeError('drawing failed'); }")
+	t.Cleanup(func() { js.Global().Delete("codebreakerRender") })
+	var logged []string
+	logError = func(msg string) { logged = append(logged, msg) }
+	t.Cleanup(func() { logError = consoleError })
+
+	Render(web.View{Screen: web.ScreenName})
+	if len(logged) != 1 || !strings.Contains(logged[0], "drawing failed") {
+		t.Errorf("logged %q, want the page's error", logged)
+	}
+}
+
 // TestConsoleError checks that the default logger writes to the console
 // without failing.
 func TestConsoleError(t *testing.T) {

@@ -57,8 +57,18 @@ function el(tag, attrs, ...children) {
   return node;
 }
 
-// Go calls this with each View.
+// Go calls this with each View. A mistake in the drawing code is logged
+// and goes no further: an error thrown back into Go would stop the game.
 globalThis.codebreakerRender = function (json) {
+  try {
+    draw(json);
+  } catch (err) {
+    console.error("codebreaker: drawing the screen failed:", err);
+  }
+};
+
+// draw shows one View.
+function draw(json) {
   const previous = view;
   view = JSON.parse(json);
   // Remember which button had the keyboard focus, so a keyboard player
@@ -95,7 +105,7 @@ globalThis.codebreakerRender = function (json) {
       focus.select();
     }
   }
-};
+}
 
 // announce tells screen readers what changed, in one short sentence: the
 // new screen's heading and text, or, on the same board, the latest row's
@@ -106,7 +116,8 @@ function announce(v, previous) {
   const sameBoard = previous && previous.screen === v.screen && v.board && previous.board &&
     previous.board.title === v.board.title;
   const rows = (v.board && v.board.rows) || [];
-  if (sameBoard && rows.length > previous.board.rows.length) {
+  const before = (previous && previous.board && previous.board.rows) || [];
+  if (sameBoard && rows.length > before.length) {
     const last = rows[rows.length - 1];
     const count = (k) => last.feedback.filter((f) => f === k).length;
     parts.push(`Row ${last.row}: ${last.guess.map((p) => p.name).join(", ")}. ` +

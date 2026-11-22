@@ -282,6 +282,8 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 
 **v2.0.1:** the tab title on the name screen read "Codebreaker · Codebreaker", because that screen's heading is the game's name; it now reads "Codebreaker".
 
+**v2.0.2:** a user reported that in Human vs Human the Code Maker could enter only one color. Every secret screen was affected, including making a code for the computer. The secret screen's board had no rows, so it reached the page as `"rows": null`; v2.0.0's screen-reader announcements read `previous.board.rows.length` on the first tap and threw. An error thrown in `codebreakerRender` comes back into Go as a panic from `js.Value.Call`, which ended the program, so the page froze after drawing the first peg. The checks after v2.0.0 never made a secret, so this was missed. Fixed in three places, with tests for the first and last: the secret screen sends an empty `rows` list; `render.js` tolerates a missing list and catches any drawing error; and `bridge.Render` recovers from a page error, logs it, and keeps the game running.
+
 **Checklist for a real Chromebook** (by hand, from the published address):
 1. Open https://tculpepp.github.io/codebreaker/ in Chrome. The name screen appears.
 2. Install it (Install in the address bar, or ⋮ → Cast, save and share → Install page as app). Codebreaker appears in the launcher with the peg icon.
