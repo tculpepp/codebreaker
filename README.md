@@ -14,6 +14,16 @@ make build                   # build bin/codebreaker
 ./bin/codebreaker -h         # list the flags
 ```
 
+## Play in the browser (in progress)
+
+A browser version is being built alongside the terminal one, aiming at an installable app for Chromebooks ([web plan](docs/web-plan.md)). So far it plays a Single game, breaking the computer's code. To try it:
+
+```sh
+make serve        # builds dist/ and serves it at http://localhost:8080
+```
+
+Tap the colors (or type their letters), then Submit (or press Enter).
+
 ## How to play
 
 1. Choose a **Match** (rounds until someone reaches 30 points) or a **Single game** (one round), the difficulty (**Normal** or **Easy**), then your opponent: the computer or another person.
@@ -65,6 +75,8 @@ Exit codes: 0 for a normal finish or quitting, 2 for bad flags, 130 after Ctrl-C
 make test         # all tests, with the race detector
 make test-short   # skips the slow test that solves all 6720 codes
 make test-wasm    # the web version's packages, as WebAssembly under Node.js
+make web          # build the browser version into dist/
+make serve        # build it and serve it at http://localhost:8080
 make cover        # coverage report (coverage.html)
 make lint         # go vet + staticcheck, including doc-comment checks
 make doc          # every package's documentation, as `go doc` shows it
@@ -83,21 +95,25 @@ CI (`.github/workflows/ci.yml`) runs the tests on Linux, macOS and Windows with 
 ### Project layout
 
 ```
-cmd/codebreaker/   main: flags, Ctrl-C, exit code (kept tiny)
+cmd/codebreaker/  terminal main: flags, Ctrl-C, exit code (kept tiny)
+cmd/web/          browser main, compiled to WebAssembly (kept tiny)
 internal/
-  code/     the rules of a code: colors, parsing, scoring a guess (no dependencies)
-  game/     rounds, scoring, matches; no input or output at all
-  solver/   the computer Code Breaker
-  player/   Human and Computer players
-  input/    reading answers: prompts, hidden input, Ctrl-C
-  ui/       drawing: board, colors, menus, messages
-  app/      the menus and wiring that make it a program
-  message/  friendly wording for mistakes, shared by both front ends
-  web/      the browser version's logic: screens as Views, events, the board (in progress)
-docs/       requirements and implementation plan
+  code/        the rules of a code: colors, parsing, scoring a guess (no dependencies)
+  game/        rounds, scoring, matches; no input or output at all
+  solver/      the computer Code Breaker
+  player/      Human and Computer players
+  message/     friendly wording for mistakes, shared by both front ends
+  input/       terminal: reading answers, hidden input, Ctrl-C
+  ui/          terminal: drawing the board, colors, menus, messages
+  app/         terminal: the menus and wiring that make it a program
+  web/         browser: screens as Views, events, the game session
+  web/bridge/  browser: connects the session to the page (WebAssembly only)
+web/           the page: index.html, style.css, render.js
+tools/serve/   a small local web server for trying the browser version
+docs/          requirements, implementation plan, web plan
 ```
 
-Dependencies only point one way (`app` → `player`, `ui`, `input`, `game` → `code`), so the rules can be tested without a terminal, and the whole game can be played by a test script.
+Dependencies only point one way (`app` → `player`, `ui`, `input`, `game` → `code`), so the rules can be tested without a terminal, and the whole game can be played by a test script. The browser side does the same (`bridge` → `web` → `game`, `player`, `message` → `code`), and neither front end imports the other.
 
 ## Learning Go with this repo
 
@@ -137,7 +153,9 @@ grep -rn "Go note:" internal/ cmd/
 | `app` | A state machine, `flag.FlagSet`, keeping `main` small, unexported `run` for testing, exit codes, wrapping an interface by embedding it |
 | `cmd/codebreaker` | `signal.NotifyContext`, why `os.Exit` skips `defer` |
 | `message` | `errors.As` with concrete and interface targets, extracting a package so two others can share it |
-| `web` | Struct tags and `encoding/json`, `omitempty`, pointer fields for optional parts, string enums, golden JSON files |
+| `web` | Struct tags and `encoding/json`, `omitempty`, pointer fields for optional parts, string enums, golden JSON files, a mutex-guarded queue with a "doorbell" channel, `select` with `default`, functions as values |
+| `web/bridge`, `cmd/web` | `syscall/js`, `js.FuncOf` callbacks that must not block, build constraints, WebAssembly |
+| `tools/serve` | `net/http`, `http.FileServer`, wrapping a handler with `http.HandlerFunc`, `httptest` |
 
 ## Documents
 

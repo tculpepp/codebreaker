@@ -51,3 +51,28 @@ func Points(rows int, solved bool) int {
 		return 4
 	}
 }
+
+// Bracket returns the range of rows that score the same points as solving
+// in rows, such as 5 and 6 for rows = 5. Both front ends quote it, as in
+// "solved in rows 5–6".
+//
+// It works the range out from Points instead of repeating the scoring
+// table, so the screens can never disagree with the rules.
+//
+// Go note: a call that returns two values can be passed straight to a
+// function that takes those two values, as in r.Range(game.Bracket(rows)).
+func Bracket(rows int) (lo, hi int) {
+	p := Points(rows, true)
+	lo, hi = rows, rows
+	for lo > 1 && Points(lo-1, true) == p {
+		lo--
+	}
+	for hi < MaxRows && Points(hi+1, true) == p {
+		hi++
+	}
+	// Go note: lo and hi are "named results", declared in the function
+	// signature. They're ordinary variables, and a bare `return` returns
+	// their current values. Here they also document what the two ints
+	// mean.
+	return
+}

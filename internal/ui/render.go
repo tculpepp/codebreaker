@@ -215,10 +215,10 @@ func (r *Renderer) RoundEnded(res game.RoundResult, seats [2]game.Seat) {
 		b.WriteString(" No points this round.\n")
 	case r.mode == game.ModeSingle:
 		fmt.Fprintf(&b, " In a match that would score %d points (solved in rows %s).\n",
-			res.Points, r.Range(bracket(res.Rows)))
+			res.Points, r.Range(game.Bracket(res.Rows)))
 	default:
 		fmt.Fprintf(&b, " %s scores %d points (solved in rows %s).\n",
-			breaker, res.Points, r.Range(bracket(res.Rows)))
+			breaker, res.Points, r.Range(game.Bracket(res.Rows)))
 	}
 	if r.mode == game.ModeMatch {
 		fmt.Fprintf(&b, " Score: %s\n", r.scoreLine(seats[0], seats[1]))
@@ -250,30 +250,6 @@ func (r *Renderer) MatchEnded(st game.Standings) {
 	}
 
 	r.write(b.String())
-}
-
-// bracket returns the range of rows that score the same points as solving
-// in rows, such as 5 and 6 for rows = 5.
-//
-// It works the range out from game.Points instead of repeating the scoring
-// table, so the screen can never disagree with the rules.
-//
-// Go note: a call that returns two values can be passed straight to a
-// function that takes those two values, as in r.Range(bracket(rows)).
-func bracket(rows int) (lo, hi int) {
-	p := game.Points(rows, true)
-	lo, hi = rows, rows
-	for lo > 1 && game.Points(lo-1, true) == p {
-		lo--
-	}
-	for hi < game.MaxRows && game.Points(hi+1, true) == p {
-		hi++
-	}
-	// Go note: lo and hi are "named results", declared in the function
-	// signature. They're ordinary variables, and a bare `return` returns
-	// their current values. Here they also document what the two ints
-	// mean.
-	return
 }
 
 // modeTitle returns the mode as a screen heading: "Match" or "Single game".

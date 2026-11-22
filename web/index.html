@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+  The page shell for the browser version of Codebreaker (docs/web-plan.md).
+  It holds no game logic: render.js loads the Go program (codebreaker.wasm)
+  and draws whatever screen Go describes.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Codebreaker</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="app" aria-live="polite">
+    <p class="status">Loading…</p>
+  </main>
+  <noscript><p class="status">Codebreaker needs JavaScript turned on.</p></noscript>
+  <!-- wasm_exec.js comes with Go and must match the Go version that built
+       codebreaker.wasm, so `make web` copies it in fresh on every build. -->
+  <script src="wasm_exec.js"></script>
+  <script src="render.js"></script>
+</body>
+</html>

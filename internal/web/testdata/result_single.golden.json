@@ -1,0 +1,84 @@
+{
+  "screen": "result",
+  "title": "Game over",
+  "lines": [
+    "Tom cracked the code in 1 row!",
+    "In a match that would score 12 points (solved in rows 1–4)."
+  ],
+  "menu": {
+    "choices": [
+      "Play again"
+    ]
+  },
+  "board": {
+    "title": "Single game · Round 1",
+    "maker": {
+      "name": "Computer",
+      "peg": "red",
+      "score": 0
+    },
+    "breaker": {
+      "name": "Tom",
+      "peg": "blue",
+      "score": 0
+    },
+    "rows": [
+      {
+        "row": 1,
+        "guess": [
+          {
+            "letter": "B",
+            "name": "Blue"
+          },
+          {
+            "letter": "P",
+            "name": "Pink"
+          },
+          {
+            "letter": "R",
+            "name": "Red"
+          },
+          {
+            "letter": "W",
+            "name": "White"
+          },
+          {
+            "letter": "G",
+            "name": "Green"
+          }
+        ],
+        "feedback": [
+          "exact",
+          "exact",
+          "exact",
+          "exact",
+          "exact"
+        ]
+      }
+    ],
+    "secret": [
+      {
+        "letter": "B",
+        "name": "Blue"
+      },
+      {
+        "letter": "P",
+        "name": "Pink"
+      },
+      {
+        "letter": "R",
+        "name": "Red"
+      },
+      {
+        "letter": "W",
+        "name": "White"
+      },
+      {
+        "letter": "G",
+        "name": "Green"
+      }
+    ],
+    "maxRows": 12
+  },
+  "input": {}
+}

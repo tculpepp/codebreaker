@@ -26,6 +26,8 @@
 //   - Event (event.go): one thing the player did, parsed from JSON.
 //   - Draft (draft.go): the row of pegs being built before Submit.
 //   - Board (board.go): a game.Observer that keeps the board for the View.
+//   - Session (session.go): the screens and the game, driven by events.
+//   - Tapper (tapper.go): a game.Player whose codes come from taps.
 //
 // # Go concepts shown here
 //
@@ -34,6 +36,11 @@
 //   - String-based enums for values that travel as text
 //   - Unexported fields that encoding/json skips
 //   - Golden JSON files as the contract with another language
+//   - A mutex-guarded queue and a one-slot "doorbell" channel, so a
+//     caller never blocks
+//   - select with default, for a send that never waits
+//   - Passing functions as values to share a loop
+//   - Cutting a string by characters ([]rune), not bytes
 //
 // Search for "Go note:" to find the explanation of each one.
 package web

@@ -57,6 +57,16 @@ jobs:
           node-version: lts/*
       - name: Test as WebAssembly under Node.js
         run: make test-wasm
+      # Builds dist/ and checks the size budget in docs/web-plan.md §8.
+      - name: Build the web version
+        run: |
+          make web
+          size=$(stat -c %s dist/codebreaker.wasm)
+          echo "codebreaker.wasm is $size bytes"
+          if [ "$size" -gt 6291456 ]; then
+            echo "codebreaker.wasm is over the 6 MB budget"
+            exit 1
+          fi
 
   lint:
     runs-on: ubuntu-latest
@@ -75,3 +85,12 @@ jobs:
           fi
       - name: staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./...
+      # The browser-only code only builds for WebAssembly, so it's checked
+      # separately.
+      - name: vet and staticcheck (WebAssembly-only code)
+        env:
+          GOOS: js
+          GOARCH: wasm
+        run: |
+          go vet ./internal/web/bridge ./cmd/web
+          go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./internal/web/bridge ./cmd/web

@@ -100,23 +100,6 @@ func TestBoardEasy(t *testing.T) {
 	checkGolden(t, "board_easy", out.String())
 }
 
-// TestBracket checks the row ranges quoted in summaries and help. They are
-// worked out from game.Points, so this also proves the two agree.
-func TestBracket(t *testing.T) {
-	tests := []struct {
-		rows   int
-		lo, hi int
-	}{
-		{1, 1, 4}, {4, 1, 4}, {5, 5, 6}, {6, 5, 6}, {7, 7, 8},
-		{9, 9, 10}, {11, 11, 12}, {12, 11, 12},
-	}
-	for _, tt := range tests {
-		if lo, hi := bracket(tt.rows); lo != tt.lo || hi != tt.hi {
-			t.Errorf("bracket(%d) = %d–%d, want %d–%d", tt.rows, lo, hi, tt.lo, tt.hi)
-		}
-	}
-}
-
 // TestBoardEmpty is the screen at the start of a Single game, before any
 // guess. There's no score line, because a Single game has no match total
 // (D13).

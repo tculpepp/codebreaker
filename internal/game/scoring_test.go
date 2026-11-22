@@ -91,3 +91,21 @@ func TestRepeatGuessErrorMessage(t *testing.T) {
 		t.Errorf("Error() = %q, want %q", got, want)
 	}
 }
+
+// TestBracket checks the row ranges both front ends quote in summaries and
+// help. They are worked out from Points, so this also proves the two
+// agree.
+func TestBracket(t *testing.T) {
+	tests := []struct {
+		rows   int
+		lo, hi int
+	}{
+		{1, 1, 4}, {4, 1, 4}, {5, 5, 6}, {6, 5, 6}, {7, 7, 8},
+		{9, 9, 10}, {11, 11, 12}, {12, 11, 12},
+	}
+	for _, tt := range tests {
+		if lo, hi := Bracket(tt.rows); lo != tt.lo || hi != tt.hi {
+			t.Errorf("Bracket(%d) = %d–%d, want %d–%d", tt.rows, lo, hi, tt.lo, tt.hi)
+		}
+	}
+}

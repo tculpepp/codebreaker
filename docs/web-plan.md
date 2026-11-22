@@ -205,7 +205,7 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 | Version | Scope | Done when |
 |---|---|---|
 | ✅ v1.2.0 | **Groundwork.** Move friendly messages to `internal/message` (terminal golden files unchanged). Add `internal/web` with `View`, `Event`, `Draft` and `Board`. Measure the wasm size and the solver's speed. Add a CI job running the shared tests as WebAssembly. | `internal/web` builds Views for a scripted round at 100% coverage. Terminal unchanged. |
-| v1.3.0 | **First playable in the browser:** `Session` (Single game, human breaks the computer's code), `Tapper`, `bridge`, `cmd/web`, `web/index.html`, `render.js`, `style.css`, `make web` and `make serve`. | Play a Single game against the computer in Chrome at localhost, by tapping and by keyboard. |
+| ✅ v1.3.0 | **First playable in the browser:** `Session` (Single game, human breaks the computer's code), `Tapper`, `bridge`, `cmd/web`, `web/index.html`, `render.js`, `style.css`, `make web` and `make serve`. | Play a Single game against the computer in Chrome at localhost, by tapping and by keyboard. |
 | v1.4.0 | **All of the game:** every menu (match, Normal/Easy, roles, coin flip), computer as Breaker with `Pacer` and Skip, round and match summaries, help, quit with standings, play again. | Everything a terminal player against the computer can do, the web player can do. |
 | v1.5.0 | **Human vs Human:** names, the secret screen, the handoff card, "I'm ready" (D21). | A scripted Human vs Human match passes, and the secret never appears in a Breaker's View (tested). |
 | v2.0.0 | **Installable and published:** manifest, icons, service worker with versioned cache and update prompt, accessibility pass, README section ("Play in the browser / on a Chromebook"), Pages deploy workflow, the manual checklist done on a real Chromebook. | Installed on a Chromebook from the published URL, launched from the launcher, a full match played offline. |
@@ -242,5 +242,16 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 - `make test-wasm` runs `code`, `game`, `solver`, `player`, `message` and `web` as WebAssembly under Node.js, and CI has a `wasm` job doing the same with Go 1.24 and the latest Go. Locally all six pass. CI still hasn't run, as the repository isn't published yet.
 - Measurements are in §7: 4.5 MB raw and 1.24 MB gzipped, `x/term` costs about 1%, and the solver is fast.
 
-**Next: v1.3.0**, the first version playable in the browser (§10).
+**v1.3.0 (first playable in the browser) is done.** How it differs from the sketches above:
+- `game.Bracket` (moved from `ui`) gives the row range for a score, for both front ends' summaries. Terminal golden files are unchanged.
+- `Session`: name → line-up ("Start") → board → result with the secret revealed → "Play again" (back to the line-up). The player always breaks the computer's code; menus come in v1.4.0. Names are trimmed, default to "Player", and are cut to 20 characters. Quit shows "Game stopped before the code was cracked." without revealing the secret.
+- The event queue is a mutex-guarded slice with a one-slot "doorbell" channel, so `Handle` never blocks and never drops an event. Help and Close are handled in one place (`Session.next`): taps behind the help sheet are dropped, and closing help shows the current screen again, draft included.
+- `Tapper` implements both roles. `MakeSecret` (the secret screen) is tested now but first used in v1.4.0.
+- `BoardView` gained `secret`, present only once a round has ended.
+- `bridge` (`Render`, `Listen`) is tested under Node.js at 100% coverage with a fake `codebreakerRender`. `cmd/web` runs the session in `main`, so no `select {}` is needed.
+- The page draws the board on the left and the text and controls on the right on screens at least 760 px wide. At 1366×650 (a Chromebook's viewport) all 12 rows and the palette fit without scrolling; on a phone they stack. The last name used is remembered in `localStorage`.
+- `tools/serve`: a static server with `Cache-Control: no-store` (its handler is tested; `main` isn't, like `cmd/codebreaker`). `make web` builds `dist/` (4.4 MB wasm), `make serve` runs it at http://localhost:8080. `make vet`/`make lint` also check the WebAssembly-only code, and CI builds `dist/` and checks the 6 MB budget.
+- Checked in headless Chrome (driven over the DevTools Protocol) at 440×900 and 1366×650: name, line-up, tapping and typing colors, Enter, the duplicate message, Undo, help and Escape, Quit, and the result screen, with no console errors. Then checked again in a real Chrome window through the Claude in Chrome extension: keyboard play, tapping, help over a half-built row, and the remembered name (now selected, so typing replaces it). Help lists one scoring range per line, so a range never wraps mid-way.
+
+**Next: v1.4.0**, all of the game: menus, Normal/Easy, the computer as Breaker with paced rows, matches, help, quit and play again (§10).
 

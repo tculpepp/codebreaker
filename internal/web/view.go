@@ -90,6 +90,9 @@ type BoardView struct {
 	// with no letter. It's missing when no one is building a row, such as
 	// while the computer breaks the code.
 	Draft []PegView `json:"draft,omitempty"`
+	// Secret is the code, revealed when a round ends. It's missing until
+	// then, so the page can't show it early.
+	Secret []PegView `json:"secret,omitempty"`
 	// MaxRows is the row limit (12).
 	MaxRows int `json:"maxRows"`
 	// Easy says the feedback is by position (D18), so the page can say so.

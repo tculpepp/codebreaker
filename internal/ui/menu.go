@@ -80,7 +80,7 @@ func (r *Renderer) Goodbye() {
 }
 
 // scoringTable lists every scoring bracket and its points:
-// "1–4: 12 · 5–6: 10 · ...". It's built from bracket, and so from
+// "1–4: 12 · 5–6: 10 · ...". It's built from game.Bracket, and so from
 // game.Points.
 func (r *Renderer) scoringTable() string {
 	var parts []string
@@ -88,7 +88,7 @@ func (r *Renderer) scoringTable() string {
 	// condition-update in the header, leaves the update to the body, which
 	// jumps to the row after each bracket.
 	for row := 1; row <= game.MaxRows; {
-		lo, hi := bracket(row)
+		lo, hi := game.Bracket(row)
 		parts = append(parts, fmt.Sprintf("%s: %d", r.Range(lo, hi), game.Points(lo, true)))
 		row = hi + 1
 	}

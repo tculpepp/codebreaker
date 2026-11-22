@@ -1,0 +1,181 @@
+/*
+  Styles for the browser version of Codebreaker. One centered column,
+  about 440px wide, which fits a 1366×768 Chromebook screen and a phone.
+  Colors are tokens on :root, redefined for dark mode.
+*/
+
+:root {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6b6b70;
+  --line: #d9d6cf;
+  --accent: #2a5bd7;
+  --accent-text: #ffffff;
+  --danger: #b3261e;
+  --hole: #e8e5de;
+  --exact: #1d1d1f;
+  --partial: #b7791f;
+  --blue: #2a5bd7;
+  --red: #c62828;
+
+  /* Peg colors, the same palette as the terminal version. */
+  --peg-K: #2b2b2b;
+  --peg-W: #f4f4f4;
+  --peg-R: #e53935;
+  --peg-B: #1e88e5;
+  --peg-G: #43a047;
+  --peg-Y: #fdd835;
+  --peg-P: #f06292;
+  --peg-O: #fb8c00;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171a;
+    --surface: #222226;
+    --text: #ececef;
+    --muted: #a0a0a8;
+    --line: #3a3a40;
+    --accent: #7aa2ff;
+    --accent-text: #0e1320;
+    --danger: #ff8a80;
+    --hole: #2e2e34;
+    --exact: #ececef;
+    --partial: #f0b34a;
+    --blue: #7aa2ff;
+    --red: #ff7a70;
+    --peg-K: #0c0c0c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+h1 { font-size: 1.5rem; margin: 8px 0 12px; }
+p { margin: 6px 0; }
+.status { color: var(--muted); text-align: center; margin-top: 40vh; }
+.muted { color: var(--muted); }
+.message { color: var(--danger); font-weight: 600; min-height: 1.4em; }
+
+/* The bar at the top: title on the left, Help and Quit on the right. */
+.topbar { display: flex; align-items: center; gap: 8px; }
+.topbar h1 { flex: 1; font-size: 1.1rem; margin: 0; }
+
+button {
+  font: inherit;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+button:disabled { opacity: 0.4; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+button.small { min-height: 36px; padding: 0 12px; font-size: 0.9rem; }
+
+.choices { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+
+form.name { display: flex; gap: 8px; margin-top: 16px; }
+form.name input {
+  flex: 1;
+  min-height: 44px;
+  font: inherit;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Players and scores. */
+.seats { display: flex; justify-content: space-between; font-size: 0.9rem; margin: 8px 0; }
+.seat-blue { color: var(--blue); font-weight: 600; }
+.seat-red { color: var(--red); font-weight: 600; }
+
+/* The board: one line per row, row number, 5 pegs, 5 key pegs. */
+.board {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px;
+}
+.row {
+  display: grid;
+  grid-template-columns: 2em 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.row + .row { border-top: 1px solid var(--line); }
+.row.current { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 8px; }
+.secret-label { border-top: 2px solid var(--text); margin-top: 4px; padding-top: 6px; font-size: 0.85rem; color: var(--muted); }
+.row.secret { border-top: none; }
+.rownum { color: var(--muted); text-align: right; font-size: 0.85rem; }
+.pegs { display: flex; gap: 6px; }
+
+.peg {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  background: var(--hole);
+  color: transparent;
+  border: 1px solid transparent;
+}
+/* Light letters on dark pegs, dark letters on light ones, for contrast. */
+.peg-K { background: var(--peg-K); color: #fff; }
+.peg-W { background: var(--peg-W); color: #222; border-color: #bbb; }
+.peg-R { background: var(--peg-R); color: #fff; }
+.peg-B { background: var(--peg-B); color: #fff; }
+.peg-G { background: var(--peg-G); color: #111; }
+.peg-Y { background: var(--peg-Y); color: #222; }
+.peg-P { background: var(--peg-P); color: #222; }
+.peg-O { background: var(--peg-O); color: #222; }
+
+/* Key pegs: ● exact, △ partial, · none. */
+.keys { display: flex; gap: 4px; font-size: 1rem; width: 7.5em; justify-content: flex-end; }
+.key { width: 1.2em; text-align: center; }
+.key-exact { color: var(--exact); }
+.key-partial { color: var(--partial); }
+.key-none { color: var(--muted); opacity: 0.5; }
+
+.legend { font-size: 0.85rem; color: var(--muted); margin: 8px 0; }
+
+/* The palette: 8 color buttons in 2 rows of 4, then Undo and Submit. */
+.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.palette button { height: 52px; border-radius: 12px; padding: 0; font-weight: 700; }
+.actions { display: flex; gap: 8px; margin-top: 8px; }
+.actions button { flex: 1; }
+
+/* Wide screens, such as a 1366×768 Chromebook: board on the left,
+   text and controls on the right, so nothing needs scrolling. */
+@media (min-width: 760px) {
+  main:has(.play) { max-width: 820px; }
+  .play { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+  .col-controls > p:first-child { margin-top: 0; }
+}
+
+@media (max-width: 380px) {
+  .peg { width: 28px; height: 28px; }
+  .pegs { gap: 4px; }
+}

@@ -97,6 +97,9 @@ func (b *Board) View(draft *Draft) *BoardView {
 	if draft != nil {
 		v.Draft = draft.Pegs()
 	}
+	if b.result != nil {
+		v.Secret = pegViews(b.result.Secret)
+	}
 	return v
 }
 
