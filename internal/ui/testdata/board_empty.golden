@@ -1,0 +1,9 @@
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Computer · Breaker: Blue Tom
+┌─────┬────────────────┬────────┐
+│ Row │ Guess          │ Result │
+├─────┼────────────────┼────────┤
+└─────┴────────────────┴────────┘
+ ● right color, right spot  △ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange

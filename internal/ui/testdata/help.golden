@@ -1,0 +1,13 @@
+
+ How to play
+   The secret is 5 different colors, chosen from:
+     K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange
+   Type a guess as 5 letters: RGYBK, r g y b k or R,G,Y,B,K.
+   After each guess:
+     ● a right color in the right spot
+     △ a right color in the wrong spot
+     The symbols don't say which pegs they mean.
+   You have 12 rows. Solve sooner to score more:
+     rows 1–4: 12 · 5–6: 10 · 7–8: 8 · 9–10: 6 · 11–12: 4
+   The first player to reach 30 points wins a match.
+   Type q to quit.
