@@ -53,7 +53,7 @@ This project doubles as a way to learn Go, so **code is heavily commented**. Com
 
 ```
 codebreaker/
-├── go.mod                       # module codebreaker; go 1.22+ (math/rand/v2, sync.OnceValue)
+├── go.mod                       # module codebreaker; go 1.24+ (math/rand/v2, sync.OnceValue, testing.B.Loop)
 ├── Makefile                     # test, cover, lint, build, run, doc
 ├── staticcheck.conf             # adds ST1000/ST1020-22 doc-comment checks
 ├── README.md                    # how to play + "learning Go with this repo" guide

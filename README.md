@@ -10,7 +10,7 @@ A terminal version of the Code Breaker board game, written in Go. Two players ta
 
 ## Development
 
-Requires Go 1.22 or later.
+Requires Go 1.24 or later.
 
 ```sh
 make test   # run the tests

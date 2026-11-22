@@ -141,7 +141,7 @@ One round (D13). Roles are picked in the menu, or by coin flip. The round follow
 - **As Code Breaker:** required, because roles swap. Must use only the feedback it has received, and must solve every possible code within 12 rows. A simple consistent-guess solver is enough for v1.
 
 ## Technical Requirements
-- **Language:** Go 1.22+ (D1)
+- **Language:** Go 1.24+ (D1)
 - **Platform:** Cross-platform (Linux, macOS, Windows)
 - **Dependencies:** Standard library plus `golang.org/x/term` (hidden input, terminal detection)
 - **Architecture:** Modular packages for:
