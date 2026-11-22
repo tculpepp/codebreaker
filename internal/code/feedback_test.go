@@ -188,3 +188,64 @@ func ExampleScore() {
 	fmt.Printf("%d exact, %d partial\n", fb.Exact, fb.Partial)
 	// Output: 1 exact, 2 partial
 }
+
+// TestMarksExamples checks easy-mode marks on hand-worked cases: each
+// position gets its own result, in the same place as the guess peg.
+func TestMarksExamples(t *testing.T) {
+	const (
+		x = MarkExact
+		p = MarkPartial
+		o = MarkNone
+	)
+	tests := []struct {
+		name          string
+		secret, guess string
+		want          [Length]Mark
+	}{
+		{"solved", "RGYBK", "RGYBK", [Length]Mark{x, x, x, x, x}},
+		{"all shifted", "RGYBK", "KRGYB", [Length]Mark{p, p, p, p, p}},
+		// R in place; Y and G swapped; W and P absent.
+		{"mixed", "RGYBK", "RYGWP", [Length]Mark{x, p, p, o, o}},
+		// Only the 2nd peg is right: the mark is in the 2nd spot too.
+		{"second peg exact", "RGYBK", "WGPOR", [Length]Mark{o, x, o, o, p}},
+		{"minimum overlap", "RGYBK", "WPORG", [Length]Mark{o, o, o, p, p}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Marks(mustParse(t, tt.secret), mustParse(t, tt.guess))
+			if got != tt.want {
+				t.Errorf("Marks(%s, %s) = %v, want %v", tt.secret, tt.guess, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestMarksAgreeWithScore checks that easy-mode marks always add up to the
+// normal feedback: as many exact and partial marks as Score counts.
+func TestMarksAgreeWithScore(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 4))
+	for range 2000 {
+		secret, guess := Random(rng), Random(rng)
+		var got Feedback
+		for _, m := range Marks(secret, guess) {
+			switch m {
+			case MarkExact:
+				got.Exact++
+			case MarkPartial:
+				got.Partial++
+			}
+		}
+		if want := Score(secret, guess); got != want {
+			t.Fatalf("Marks(%s, %s) count %+v, Score says %+v", secret, guess, got, want)
+		}
+	}
+}
+
+// TestMarkString checks marks print as readable words in test failures.
+func TestMarkString(t *testing.T) {
+	for m, want := range map[Mark]string{MarkNone: "none", MarkExact: "exact", MarkPartial: "partial", Mark(9): "Mark(9)"} {
+		if got := m.String(); got != want {
+			t.Errorf("Mark(%d).String() = %q, want %q", int(m), got, want)
+		}
+	}
+}

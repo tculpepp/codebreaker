@@ -50,6 +50,8 @@ const (
 	menuMatch  = "1" // main menu: Match against the computer
 	menuSingle = "2" // main menu: Single game against the computer
 	menuQuit   = "3" // main menu: Quit
+	levelNorm  = "1" // difficulty menu: Normal
+	levelEasy  = "2" // difficulty menu: Easy
 	vsComputer = "1" // opponent menu: the computer
 	vsHuman    = "2" // opponent menu: another person
 	roleBreak  = "1" // role menu: break the computer's code
@@ -100,7 +102,7 @@ func TestSingleTranscript(t *testing.T) {
 	s := firstSecret(1).String()
 	wrong := wrongGuess(firstSecret(1))
 	out, err := script(t, context.Background(), 1,
-		"Tom", "?", menuSingle, vsComputer, roleBreak, start,
+		"Tom", "?", menuSingle, levelNorm, vsComputer, roleBreak, start,
 		"rrr", wrong, wrong, s, "5", againNew, menuQuit)
 	if err != nil {
 		t.Fatal(err)
@@ -134,7 +136,7 @@ func TestMatchTranscript(t *testing.T) {
 	secret := code.Random(rng)
 
 	out, err := script(t, context.Background(), seed,
-		"Tom", menuMatch, vsComputer, start, secret.String(), "opygb", "q")
+		"Tom", menuMatch, levelNorm, vsComputer, start, secret.String(), "opygb", "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +159,7 @@ func TestMatchTranscript(t *testing.T) {
 // and the computer breaks it.
 func TestSingleAsMaker(t *testing.T) {
 	out, err := script(t, context.Background(), 1,
-		"Tom", menuSingle, vsComputer, roleMake, start, "rgybk", againQuit)
+		"Tom", menuSingle, levelNorm, vsComputer, roleMake, start, "rgybk", againQuit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +174,7 @@ func TestSingleAsMaker(t *testing.T) {
 // picked. Either result is fine; quitting at the first prompt works for
 // both roles.
 func TestSingleCoinFlip(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsComputer, roleFlip, start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, levelNorm, vsComputer, roleFlip, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +189,7 @@ func TestSingleCoinFlip(t *testing.T) {
 // must not appear anywhere before Tom types it as a guess.
 func TestHumanVsHumanSingle(t *testing.T) {
 	out, err := script(t, context.Background(), 1,
-		"Tom", menuSingle, vsHuman, "Ann", roleBreak, start,
+		"Tom", menuSingle, levelNorm, vsHuman, "Ann", roleBreak, start,
 		"opygb", "opygb", "", // Ann types the code twice, Tom presses Enter
 		"rgybk", "opygb", againQuit)
 	if err != nil {
@@ -224,7 +226,7 @@ func TestHumanVsHumanMatch(t *testing.T) {
 		firstMaker, firstBreaker = "Tom", "Ann"
 	}
 
-	lines := []string{"Tom", menuMatch, vsHuman, "Ann", start}
+	lines := []string{"Tom", menuMatch, levelNorm, vsHuman, "Ann", start}
 	for _, secret := range []string{"rgybk", "wpogr", "kbyog", "gorwp", "ypkbw"} {
 		lines = append(lines, secret, secret, "", secret)
 	}
@@ -250,7 +252,7 @@ func TestHumanVsHumanMatch(t *testing.T) {
 // TestHumanVsHumanRoles checks the role menu names both people, and that
 // the second choice makes the first player the Maker.
 func TestHumanVsHumanRoles(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsHuman, "Ann", roleMake, start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, levelNorm, vsHuman, "Ann", roleMake, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +267,7 @@ func TestHumanVsHumanRoles(t *testing.T) {
 // help works, and a name already taken (in any case) is refused with a
 // friendly message.
 func TestSecondName(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsHuman, "?", "TOM", "", roleBreak, start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, levelNorm, vsHuman, "?", "TOM", "", roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,7 +284,7 @@ func TestSecondName(t *testing.T) {
 // TestDefaultName checks that pressing Enter at the name prompt plays as
 // "Player".
 func TestDefaultName(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "", menuSingle, vsComputer, roleBreak, start, "q")
+	out, err := script(t, context.Background(), 1, "", menuSingle, levelNorm, vsComputer, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +296,7 @@ func TestDefaultName(t *testing.T) {
 // TestHelpAtNamePrompt checks that help works at the very first prompt,
 // and that the question is asked again afterwards.
 func TestHelpAtNamePrompt(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "?", "Ann", menuSingle, vsComputer, roleBreak, start, "q")
+	out, err := script(t, context.Background(), 1, "?", "Ann", menuSingle, levelNorm, vsComputer, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +311,7 @@ func TestHelpAtNamePrompt(t *testing.T) {
 // TestHelpAtStartPrompt checks that help works at "Press Enter to start",
 // and that the question is asked again.
 func TestHelpAtStartPrompt(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsComputer, roleBreak, "?", start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, levelNorm, vsComputer, roleBreak, "?", start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +325,7 @@ func TestHelpAtStartPrompt(t *testing.T) {
 // (nil error, exit code 0) that says goodbye (D16).
 func TestQuitting(t *testing.T) {
 	s := firstSecret(1).String()
-	single := []string{"Tom", menuSingle, vsComputer, roleBreak, start}
+	single := []string{"Tom", menuSingle, levelNorm, vsComputer, roleBreak, start}
 	tests := []struct {
 		name  string
 		lines []string
@@ -332,10 +334,11 @@ func TestQuitting(t *testing.T) {
 		{name: "input ends at name", lines: nil},
 		{name: "quit from main menu", lines: []string{"Tom", menuQuit}},
 		{name: "q at main menu", lines: []string{"Tom", "q"}},
-		{name: "q at opponent menu", lines: []string{"Tom", menuSingle, "q"}},
-		{name: "q at second name", lines: []string{"Tom", menuSingle, vsHuman, "q"}},
-		{name: "q at role menu", lines: []string{"Tom", menuSingle, vsComputer, "q"}},
-		{name: "q at start", lines: []string{"Tom", menuSingle, vsComputer, roleBreak, "q"}},
+		{name: "q at difficulty menu", lines: []string{"Tom", menuSingle, "q"}},
+		{name: "q at opponent menu", lines: []string{"Tom", menuSingle, levelNorm, "q"}},
+		{name: "q at second name", lines: []string{"Tom", menuSingle, levelNorm, vsHuman, "q"}},
+		{name: "q at role menu", lines: []string{"Tom", menuSingle, levelNorm, vsComputer, "q"}},
+		{name: "q at start", lines: []string{"Tom", menuSingle, levelNorm, vsComputer, roleBreak, "q"}},
 		{name: "q mid-round", lines: append(single, "q")},
 		{name: "input ends mid-round", lines: single},
 		{name: "quit from play-again", lines: append(single, s, againQuit)},
@@ -408,10 +411,10 @@ func TestCtrlC(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out strings.Builder
-	// Questions: name, main menu, opponent, role, start, then the first
-	// guess (6th).
-	lines := input.NewScripted(&out, "Tom", menuSingle, vsComputer, roleBreak, start, "RGYBK")
-	p := &cancelOnCall{Prompter: lines, n: 6, cancel: cancel}
+	// Questions: name, main menu, difficulty, opponent, role, start, then
+	// the first guess (7th).
+	lines := input.NewScripted(&out, "Tom", menuSingle, levelNorm, vsComputer, roleBreak, start, "RGYBK")
+	p := &cancelOnCall{Prompter: lines, n: 7, cancel: cancel}
 
 	err := run(ctx, p, ui.NewRenderer(&out, ui.Options{}), newRNG(1), Options{})
 	if !errors.Is(err, context.Canceled) {
@@ -473,13 +476,13 @@ func TestExitCode(t *testing.T) {
 // from the name to the line-up, and "New game" replays the same setup.
 func TestFlagsSkipMenus(t *testing.T) {
 	s := firstSecret(1)
-	o := Options{Mode: "single", Opponent: "computer", Role: "breaker"}
+	o := Options{Mode: "single", Opponent: "computer", Role: "breaker", Difficulty: "normal"}
 	out, err := scriptWith(t, context.Background(), 1, o, ui.Options{},
 		"Tom", start, s.String(), againNew, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, menu := range []string{"Main menu", "Play against:", "who makes the code?"} {
+	for _, menu := range []string{"Main menu", "Difficulty:", "Play against:", "who makes the code?"} {
 		if strings.Contains(out, menu) {
 			t.Errorf("menu %q shown although its flag was given", menu)
 		}
@@ -495,7 +498,7 @@ func TestFlagsSkipMenus(t *testing.T) {
 // decides the roles.
 func TestSomeFlags(t *testing.T) {
 	out, err := scriptWith(t, context.Background(), 1, Options{Mode: "match"}, ui.Options{},
-		"Tom", vsComputer, "q")
+		"Tom", levelNorm, vsComputer, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +507,7 @@ func TestSomeFlags(t *testing.T) {
 	}
 
 	out, err = scriptWith(t, context.Background(), 1, Options{Opponent: "human", Role: "random"}, ui.Options{},
-		"Tom", menuSingle, "Ann", start, "q")
+		"Tom", menuSingle, levelNorm, "Ann", start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +524,7 @@ func TestSomeFlags(t *testing.T) {
 // TestRoleFlags checks each -role value seats the first player correctly.
 func TestRoleFlags(t *testing.T) {
 	for role, want := range map[string]string{"breaker": "Computer makes the code.", "maker": "Tom makes the code."} {
-		o := Options{Mode: "single", Opponent: "computer", Role: role}
+		o := Options{Mode: "single", Opponent: "computer", Role: role, Difficulty: "normal"}
 		out, err := scriptWith(t, context.Background(), 1, o, ui.Options{}, "Tom", start, "q")
 		if err != nil {
 			t.Fatal(err)
@@ -532,6 +535,40 @@ func TestRoleFlags(t *testing.T) {
 	}
 }
 
+// TestDifficulty checks both ways to choose easy mode, the menu and the
+// -difficulty flag: the board then says easy mode is on. With Normal, or
+// -difficulty normal, it doesn't, and the flag skips the menu.
+func TestDifficulty(t *testing.T) {
+	s := firstSecret(1)
+	out, err := script(t, context.Background(), 1,
+		"Tom", menuSingle, levelEasy, vsComputer, roleBreak, start, s.String(), againQuit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Easy mode:") || !strings.Contains(out, "Tom cracked the code") {
+		t.Errorf("easy chosen in the menu: easy board not shown:\n%s", out)
+	}
+
+	o := Options{Mode: "single", Opponent: "computer", Role: "breaker", Difficulty: "easy"}
+	out, err = scriptWith(t, context.Background(), 1, o, ui.Options{},
+		"Tom", start, s.String(), againNew, start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "Difficulty:") {
+		t.Errorf("-difficulty easy: the difficulty menu was shown:\n%s", out)
+	}
+	if got := strings.Count(out, "Easy mode:"); got < 2 {
+		t.Errorf("-difficulty easy: easy board shown %d times, want it in both games:\n%s", got, out)
+	}
+
+	o.Difficulty = "normal"
+	out, _ = scriptWith(t, context.Background(), 1, o, ui.Options{}, "Tom", start, "q")
+	if strings.Contains(out, "Easy mode:") {
+		t.Errorf("-difficulty normal: easy mode shown:\n%s", out)
+	}
+}
+
 // TestASCIISession plays a session that reaches nearly every screen, in
 // ASCII mode: menus, help, a mistake, the hidden-code handoff, a round
 // summary and the end. Not one byte of the output may be outside ASCII,
@@ -539,7 +576,7 @@ func TestRoleFlags(t *testing.T) {
 // in package player.
 func TestASCIISession(t *testing.T) {
 	out, err := scriptWith(t, context.Background(), 1, Options{}, ui.Options{ASCII: true},
-		"Tom", "?", menuSingle, vsHuman, "Ann", roleBreak, start,
+		"Tom", "?", menuSingle, levelNorm, vsHuman, "Ann", roleBreak, start,
 		"opygb", "opygb", "", "rrr", "opygb", againQuit)
 	if err != nil {
 		t.Fatal(err)
@@ -568,6 +605,7 @@ func TestParseFlags(t *testing.T) {
 		{[]string{"-mode=single", "-role=maker"}, Options{Mode: "single", Role: "maker"}},
 		{[]string{"-role", "random"}, Options{Mode: "single", Role: "random"}},
 		{[]string{"-no-color", "-ascii"}, Options{NoColor: true, ASCII: true}},
+		{[]string{"-difficulty", "easy"}, Options{Difficulty: "easy"}},
 	}
 	for _, tt := range valid {
 		got, err := ParseFlags(append(tt.args, "-seed", "7"), io.Discard)
@@ -581,6 +619,7 @@ func TestParseFlags(t *testing.T) {
 		{"-mode", "tournament"},
 		{"-opponent", "dog"},
 		{"-role", "judge"},
+		{"-difficulty", "hard"},
 		{"-mode", "match", "-role", "maker"},
 		{"-seed", "minus one"},
 		{"-colour"},
@@ -601,7 +640,7 @@ func TestParseFlags(t *testing.T) {
 	if _, err := ParseFlags([]string{"-h"}, &stderr); !errors.Is(err, flag.ErrHelp) {
 		t.Errorf("ParseFlags(-h) error = %v, want flag.ErrHelp", err)
 	}
-	for _, name := range []string{"-mode", "-opponent", "-role", "-seed", "-no-color", "-ascii"} {
+	for _, name := range []string{"-mode", "-opponent", "-role", "-seed", "-no-color", "-ascii", "-difficulty"} {
 		if !strings.Contains(stderr.String(), name) {
 			t.Errorf("usage doesn't mention %s:\n%s", name, stderr.String())
 		}

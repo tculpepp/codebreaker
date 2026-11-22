@@ -204,6 +204,7 @@ func (m *Match) playRound(ctx context.Context) (RoundResult, error) {
 		MaxRows: MaxRows,
 		Maker:   maker,
 		Breaker: breaker,
+		Easy:    m.cfg.Easy,
 	}
 
 	// Go note: ctx.Err() is nil while the context is live, and

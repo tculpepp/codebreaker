@@ -52,6 +52,10 @@ type Turn struct {
 	Guess code.Code
 	// Feedback is the ●/△ result for that guess.
 	Feedback code.Feedback
+	// Marks is the same result position by position, for easy mode:
+	// Marks[i] is about Guess[i]. It's always filled in; the screen shows
+	// it only when RoundInfo.Easy is set.
+	Marks [code.Length]code.Mark
 }
 
 // Round is one secret code and the guesses made against it.
@@ -116,6 +120,7 @@ func (r *Round) Submit(guess code.Code) (Turn, error) {
 		Row:      len(r.turns) + 1,
 		Guess:    guess,
 		Feedback: code.Score(r.secret, guess),
+		Marks:    code.Marks(r.secret, guess),
 	}
 	r.turns = append(r.turns, turn)
 

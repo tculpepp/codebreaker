@@ -49,7 +49,9 @@ func TestRoundSolved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Turn{Row: 1, Guess: mustParse(t, "RYGWP"), Feedback: code.Feedback{Exact: 1, Partial: 2}}
+	want := Turn{Row: 1, Guess: mustParse(t, "RYGWP"), Feedback: code.Feedback{Exact: 1, Partial: 2},
+		// Every turn also carries the easy-mode marks, one per position.
+		Marks: [code.Length]code.Mark{code.MarkExact, code.MarkPartial, code.MarkPartial, code.MarkNone, code.MarkNone}}
 	if turn != want {
 		t.Errorf("turn 1 = %+v, want %+v", turn, want)
 	}

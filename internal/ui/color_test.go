@@ -79,7 +79,7 @@ func TestPegColors(t *testing.T) {
 		}
 	}
 	if got, want := r.Feedback(code.Feedback{Exact: 1, Partial: 1}),
-		"\x1b[1m●\x1b[0m\x1b[38;5;226m△\x1b[0m\x1b[2m···\x1b[0m"; got != want {
+		"\x1b[1m●\x1b[0m \x1b[38;5;226m△\x1b[0m \x1b[2m·\x1b[0m \x1b[2m·\x1b[0m \x1b[2m·\x1b[0m"; got != want {
 		t.Errorf("Feedback = %q, want %q", got, want)
 	}
 }

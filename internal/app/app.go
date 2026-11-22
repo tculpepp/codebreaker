@@ -119,12 +119,12 @@ func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand, 
 
 // state is one screen of the app's flow (implementation-plan.md §5):
 //
-//	stateName ─▶ stateMainMenu ─▶ stateChooseOpponent ─person─▶ stateSecondName
-//	                 ▲   │                │ computer                 │
-//	                 │   │                ▼                          ▼
-//	                 │   │   Match: statePlay  ·  Single: stateChooseRole ─▶ statePlay
-//	                 │   │                                                      │
-//	                 │   └─Quit─▶ stateDone ◀─Quit─ statePlayAgain ◀────────────┘
+//	stateName ─▶ stateMainMenu ─▶ stateChooseLevel ─▶ stateChooseOpponent ─person─▶ stateSecondName
+//	                 ▲   │                                  │ computer                 │
+//	                 │   │                                  ▼                          ▼
+//	                 │   │                  Match: statePlay  ·  Single: stateChooseRole ─▶ statePlay
+//	                 │   │                                                                     │
+//	                 │   └─Quit─▶ stateDone ◀─Quit─ statePlayAgain ◀───────────────────────────┘
 //	                 └───────────────New game──────────┘
 //
 // Go note: this is a "state machine". Each state has its own step method
@@ -138,6 +138,7 @@ type state int
 const (
 	stateName           state = iota // ask the first player's name
 	stateMainMenu                    // choose Match, Single game or Quit
+	stateChooseLevel                 // Normal or Easy
 	stateChooseOpponent              // the computer or another person
 	stateSecondName                  // ask the second person's name
 	stateChooseRole                  // Single game only: who makes the code
@@ -182,6 +183,8 @@ func (s *session) step(ctx context.Context, st state) (state, error) {
 		return s.askName(ctx)
 	case stateMainMenu:
 		return s.mainMenu(ctx)
+	case stateChooseLevel:
+		return s.chooseLevel(ctx)
 	case stateChooseOpponent:
 		return s.chooseOpponent(ctx)
 	case stateSecondName:
@@ -261,13 +264,28 @@ func (s *session) mainMenu(ctx context.Context) (state, error) {
 	case choice == 0:
 		// The zero Config is a full match with a coin flip (D6).
 		s.cfg = game.Config{}
-		return stateChooseOpponent, nil
+		return stateChooseLevel, nil
 	case choice == 1:
 		s.cfg = game.Config{Mode: game.ModeSingle}
-		return stateChooseOpponent, nil
+		return stateChooseLevel, nil
 	default:
 		return stateDone, nil
 	}
+}
+
+// chooseLevel asks for the difficulty. Easy mode shows each feedback
+// symbol in the same spot as the guess peg it scores; scoring is the same.
+// The -difficulty flag answers it without asking.
+func (s *session) chooseLevel(ctx context.Context) (state, error) {
+	choice, err := s.chooseUnless(ctx, s.opts.Difficulty, levels, "Difficulty:", []string{
+		"Normal",
+		"Easy (each result symbol shows which peg it's for)",
+	})
+	if err != nil {
+		return stateDone, err
+	}
+	s.cfg.Easy = choice == 1
+	return stateChooseOpponent, nil
 }
 
 // chooseOpponent asks whether to play the computer or another person at

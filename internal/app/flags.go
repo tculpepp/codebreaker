@@ -30,6 +30,9 @@ type Options struct {
 	NoColor bool
 	// ASCII draws with ASCII characters only.
 	ASCII bool
+	// Difficulty is "normal", "easy" (each feedback symbol in the spot of
+	// the guess peg it scores; game.Config.Easy), or "" to ask.
+	Difficulty string
 }
 
 // The values each flag accepts. "" (the flag not given) is allowed too.
@@ -37,6 +40,7 @@ var (
 	modes     = []string{"match", "single"}
 	opponents = []string{"computer", "human"}
 	roles     = []string{"breaker", "maker", "random"}
+	levels    = []string{"normal", "easy"}
 )
 
 // ParseFlags reads the command-line arguments (without the program name)
@@ -60,6 +64,7 @@ func ParseFlags(args []string, stderr io.Writer) (Options, error) {
 	fs.Uint64Var(&o.Seed, "seed", 0, "seed for all random choices, to replay a game (default: random)")
 	fs.BoolVar(&o.NoColor, "no-color", false, "turn off colors")
 	fs.BoolVar(&o.ASCII, "ascii", false, "draw with ASCII characters only")
+	fs.StringVar(&o.Difficulty, "difficulty", "", "normal, or easy: each feedback symbol in the spot of the peg it scores (default: ask)")
 	fs.Usage = func() {
 		fmt.Fprint(fs.Output(), "Usage: codebreaker [flags]\n\n"+
 			"Play Code Breaker in the terminal. Each flag answers a menu question,\n"+
@@ -94,6 +99,7 @@ func ParseFlags(args []string, stderr io.Writer) (Options, error) {
 		{"mode", o.Mode, modes},
 		{"opponent", o.Opponent, opponents},
 		{"role", o.Role, roles},
+		{"difficulty", o.Difficulty, levels},
 	}
 	for _, c := range checks {
 		// Go note: slices.Contains reports whether a value is in a slice.

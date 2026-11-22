@@ -68,4 +68,6 @@ type RoundInfo struct {
 	MaxRows int
 	// Maker and Breaker are the seats in each role this round.
 	Maker, Breaker Seat
+	// Easy is Config.Easy: show the feedback by position (Turn.Marks).
+	Easy bool
 }

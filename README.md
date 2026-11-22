@@ -16,14 +16,14 @@ make build                   # build bin/codebreaker
 
 ## How to play
 
-1. Choose a **Match** (rounds until someone reaches 30 points) or a **Single game** (one round), then your opponent: the computer or another person.
+1. Choose a **Match** (rounds until someone reaches 30 points) or a **Single game** (one round), the difficulty (**Normal** or **Easy**), then your opponent: the computer or another person.
 2. A coin flip decides who makes the first code. In a match, the roles swap after every round.
 3. The **Code Maker** picks 5 different colors from 8. Against another person, the code is typed hidden, twice, and the screen is cleared before the keyboard is handed over.
 4. The **Code Breaker** guesses. After each guess the game shows:
    - `●` for each peg of the right color in the right spot
    - `△` for each peg of the right color in the wrong spot
 
-   The symbols are always listed in that order, so they don't say *which* pegs they mean.
+   The symbols are always listed in that order, so they don't say *which* pegs they mean. On the **Easy** difficulty they do: each symbol sits in the same spot as the peg it scores, so `· ● · · △` means the 2nd peg is right and the 5th is the right color in the wrong spot.
 5. The Breaker scores by how many rows they needed. The Maker scores nothing.
 
 | Solved in row | Points |
@@ -53,6 +53,7 @@ Each flag answers one of the menu questions, which is then skipped. Anything you
 | `-seed` | a number | Fixes every random choice, so the same seed and the same answers replay the same game |
 | `-no-color` | | Turns colors off (so does setting `NO_COLOR`) |
 | `-ascii` | | Draws with ASCII characters only (`* ^ .` for feedback, `+ - \|` for the board) |
+| `-difficulty` | `normal`, `easy` | Easy shows each feedback symbol in the same spot as the guess peg it scores |
 
 For example, `codebreaker -mode single -opponent computer -role breaker` goes straight to breaking the computer's code.
 

@@ -6,7 +6,8 @@
    After each guess:
      ● a right color in the right spot
      △ a right color in the wrong spot
-     The symbols don't say which pegs they mean.
+     The symbols don't say which pegs they mean, except on
+     Easy, where each one sits in the spot of its peg.
    You have 12 rows. Solve sooner to score more:
      rows 1–4: 12 · 5–6: 10 · 7–8: 8 · 9–10: 6 · 11–12: 4
    The first player to reach 30 points wins a match.

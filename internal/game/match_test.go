@@ -380,3 +380,36 @@ func TestEnumStrings(t *testing.T) {
 		}
 	}
 }
+
+// infoRecorder keeps the RoundInfo of every event it sees.
+//
+// Go note: embedding NopObserver gives infoRecorder all four Observer
+// methods; it then overrides only the two it cares about.
+type infoRecorder struct {
+	NopObserver
+	infos []RoundInfo
+}
+
+func (r *infoRecorder) RoundStarted(info RoundInfo)       { r.infos = append(r.infos, info) }
+func (r *infoRecorder) TurnPlayed(info RoundInfo, _ Turn) { r.infos = append(r.infos, info) }
+
+// TestEasyModeReachesObserver checks that Config.Easy is passed on in every
+// RoundInfo, so the screen knows to draw the marks by position, and that
+// it's off by default.
+func TestEasyModeReachesObserver(t *testing.T) {
+	for _, easy := range []bool{false, true} {
+		_, bob, seats := newPair()
+		bob.solveAt[1] = 2
+		rec := &infoRecorder{}
+		m, _ := NewMatch(Config{Mode: ModeSingle, FirstMaker: FirstMakerSeat0, Easy: easy}, seats, nil, rec)
+		m.Play(context.Background())
+		if len(rec.infos) != 3 {
+			t.Fatalf("easy=%v: got %d events, want 3", easy, len(rec.infos))
+		}
+		for _, info := range rec.infos {
+			if info.Easy != easy {
+				t.Errorf("easy=%v: RoundInfo.Easy = %v", easy, info.Easy)
+			}
+		}
+	}
+}

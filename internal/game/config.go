@@ -95,6 +95,10 @@ type Config struct {
 	Mode Mode
 	// FirstMaker says who makes the first code.
 	FirstMaker FirstMaker
+	// Easy shows each key peg in the same position as the guess peg it
+	// scores, instead of only counting them (the Easy difficulty). It changes
+	// what the screen shows, not the scoring.
+	Easy bool
 }
 
 // validate checks that every field holds a defined value.

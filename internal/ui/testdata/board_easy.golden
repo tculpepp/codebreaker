@@ -1,0 +1,12 @@
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Computer · Breaker: Blue Tom
+┌─────┬────────────────┬───────────┐
+│ Row │ Guess          │ Result    │
+├─────┼────────────────┼───────────┤
+│   1 │ ●W ●G ●P ●O ●R │ · ● · · △ │
+│   2 │ ●K ●G ●R ●B ●W │ △ ● △ ● · │
+└─────┴────────────────┴───────────┘
+ ● right color, right spot  △ right color, wrong spot
+ Easy mode: each symbol is in the same spot as the peg it scores.
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange

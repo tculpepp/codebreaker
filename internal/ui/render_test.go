@@ -38,7 +38,8 @@ func newTestRenderer() (*Renderer, *strings.Builder) {
 
 // TestPegCodeFeedback checks the small building blocks every screen uses.
 // Each peg shows its letter so the game is playable without color, and
-// feedback is always 5 symbols: exact first, then partial, then empty.
+// feedback is always 5 symbols, spaced out so they're easy to count:
+// exact first, then partial, then empty.
 func TestPegCodeFeedback(t *testing.T) {
 	r, _ := newTestRenderer()
 	if got, want := r.Peg(code.Pink), "●P"; got != want {
@@ -51,17 +52,52 @@ func TestPegCodeFeedback(t *testing.T) {
 		fb   code.Feedback
 		want string
 	}{
-		{code.Feedback{}, "·····"},
-		{code.Feedback{Exact: 1, Partial: 2}, "●△△··"},
-		{code.Feedback{Partial: 5}, "△△△△△"},
-		{code.Feedback{Exact: 5}, "●●●●●"},
-		{code.Feedback{Exact: 3, Partial: 2}, "●●●△△"},
+		{code.Feedback{}, "· · · · ·"},
+		{code.Feedback{Exact: 1, Partial: 2}, "● △ △ · ·"},
+		{code.Feedback{Partial: 5}, "△ △ △ △ △"},
+		{code.Feedback{Exact: 5}, "● ● ● ● ●"},
+		{code.Feedback{Exact: 3, Partial: 2}, "● ● ● △ △"},
 	}
 	for _, tt := range feedback {
 		if got := r.Feedback(tt.fb); got != tt.want {
 			t.Errorf("Feedback(%+v) = %q, want %q", tt.fb, got, tt.want)
 		}
 	}
+}
+
+// TestMarks checks easy-mode feedback: each symbol stays in the position
+// of the guess peg it scores, rather than being sorted.
+func TestMarks(t *testing.T) {
+	r, _ := newTestRenderer()
+	secret := mustParse(t, "RGYBK")
+	tests := []struct{ guess, want string }{
+		{"WGPOR", "· ● · · △"}, // only the 2nd peg is in place; R is elsewhere
+		{"RYGWP", "● △ △ · ·"},
+		{"KRGYB", "△ △ △ △ △"},
+		{"RGYBK", "● ● ● ● ●"},
+	}
+	for _, tt := range tests {
+		if got := r.Marks(code.Marks(secret, mustParse(t, tt.guess))); got != tt.want {
+			t.Errorf("Marks for %s = %q, want %q", tt.guess, got, tt.want)
+		}
+	}
+}
+
+// TestBoardEasy is a board in easy mode: each row's feedback is drawn by
+// position, and a line under the legend says so.
+func TestBoardEasy(t *testing.T) {
+	r, out := newTestRenderer()
+	info := singleInfo
+	info.Easy = true
+	secret := mustParse(t, "RGYBK")
+	var turns []game.Turn
+	for i, g := range []string{"WGPOR", "KGRBW"} {
+		guess := mustParse(t, g)
+		turns = append(turns, game.Turn{Row: i + 1, Guess: guess,
+			Feedback: code.Score(secret, guess), Marks: code.Marks(secret, guess)})
+	}
+	r.Board(info, turns)
+	checkGolden(t, "board_easy", out.String())
 }
 
 // TestBracket checks the row ranges quoted in summaries and help. They are

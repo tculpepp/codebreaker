@@ -11,11 +11,12 @@ import (
 
 // Board column widths, in characters, not counting the borders. The guess
 // column fits 5 pegs of 2 characters with spaces between and a space
-// either side: 1 + 14 + 1 = 16.
+// either side: 1 + 14 + 1 = 16. The result column fits 5 symbols with
+// spaces between, the same way: 1 + 9 + 1 = 11.
 const (
 	colRow    = 5
 	colGuess  = 16
-	colResult = 8
+	colResult = 11
 )
 
 // Renderer draws the game on an io.Writer.
@@ -88,14 +89,51 @@ func (r *Renderer) Code(c code.Code) string {
 	return strings.Join(pegs, " ")
 }
 
-// Feedback returns the result of a guess as exactly 5 symbols: one ● per
-// exact match (bold), then one △ per partial match (yellow), then a dim ·
-// for the rest.
+// Feedback returns the result of a guess as exactly 5 symbols separated by
+// spaces: one ● per exact match (bold), then one △ per partial match
+// (yellow), then a dim · for the rest. The order says nothing about which
+// pegs they mean.
 func (r *Renderer) Feedback(f code.Feedback) string {
-	empty := code.Length - f.Exact - f.Partial
-	return r.paint(sgrBold, strings.Repeat(r.sym.exact, f.Exact)) +
-		r.paint(sgrYellow, strings.Repeat(r.sym.partial, f.Partial)) +
-		r.paint(sgrDim, strings.Repeat(r.sym.empty, empty))
+	var marks [code.Length]code.Mark
+	for i := range marks {
+		switch {
+		case i < f.Exact:
+			marks[i] = code.MarkExact
+		case i < f.Exact+f.Partial:
+			marks[i] = code.MarkPartial
+		}
+	}
+	return r.Marks(marks)
+}
+
+// Marks returns easy-mode feedback: the same symbols as Feedback, but each
+// one in the position of the guess peg it scores, so "· ● · · △" means the
+// 2nd peg is in place and the 5th is the right color in the wrong spot.
+//
+// Feedback is built on Marks too, by sorting the marks first, so both
+// always look alike.
+func (r *Renderer) Marks(marks [code.Length]code.Mark) string {
+	parts := make([]string, 0, code.Length)
+	for _, m := range marks {
+		switch m {
+		case code.MarkExact:
+			parts = append(parts, r.paint(sgrBold, r.sym.exact))
+		case code.MarkPartial:
+			parts = append(parts, r.paint(sgrYellow, r.sym.partial))
+		default:
+			parts = append(parts, r.paint(sgrDim, r.sym.empty))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// result draws a turn's feedback the way the round asks for: by position
+// in easy mode, as sorted counts otherwise.
+func (r *Renderer) result(info game.RoundInfo, t game.Turn) string {
+	if info.Easy {
+		return r.Marks(t.Marks)
+	}
+	return r.Feedback(t.Feedback)
 }
 
 // Board draws the full game screen for a round: a header with the mode,
@@ -116,12 +154,15 @@ func (r *Renderer) Board(info game.RoundInfo, turns []game.Turn) {
 	r.row(&b, " Row ", "Guess", "Result")
 	b.WriteString(r.border(r.sym.ml, r.sym.mm, r.sym.mr))
 	for _, t := range turns {
-		r.row(&b, fmt.Sprintf(" %3d ", t.Row), r.Code(t.Guess), r.Feedback(t.Feedback))
+		r.row(&b, fmt.Sprintf(" %3d ", t.Row), r.Code(t.Guess), r.result(info, t))
 	}
 	b.WriteString(r.border(r.sym.bl, r.sym.bm, r.sym.br))
 
 	fmt.Fprintf(&b, " %s right color, right spot  %s right color, wrong spot\n",
 		r.paint(sgrBold, r.sym.exact), r.paint(sgrYellow, r.sym.partial))
+	if info.Easy {
+		b.WriteString(" Easy mode: each symbol is in the same spot as the peg it scores.\n")
+	}
 	b.WriteString(" " + r.colorKey() + "\n")
 
 	r.write(b.String())

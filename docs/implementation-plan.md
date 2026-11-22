@@ -393,6 +393,11 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 - Flags: `app.ParseFlags` (testable, unlike `main`) and `app.Options`. `-role` implies `-mode single`, and `-role` with `-mode match` is a usage error. Without `-seed`, a random seed is chosen. A flag skips its menu question every time, including after "New game". `-h` exits 0 and bad flags exit 2.
 - CI: tests on Linux, macOS and Windows with Go 1.24.x and stable (race detector everywhere except Windows), plus gofmt and staticcheck 2026.2.2. `.gitattributes` keeps golden files LF on Windows. The workflow is written but hasn't run yet: it needs a push to GitHub.
 
+**v1.1.0, easy mode and spaced feedback** (added after v1.0.0, at the user's request):
+- Easy mode, chosen in a Difficulty menu after the main menu (Normal or Easy) or with `-difficulty normal|easy`: each feedback symbol sits in the same position as the guess peg it scores, so `· ● · · △` means the 2nd peg is in place and the 5th is the right color in the wrong spot. `code.Marks` scores a guess position by position (`code.Mark`: none, exact, partial); a test checks that the marks always count up to `code.Score`. Every `game.Turn` carries both `Feedback` and `Marks`, and `game.Config.Easy` is passed on in `RoundInfo.Easy`, so the screen picks which to draw. The board adds a line saying easy mode is on, and Help mentions it.
+- Scoring is unchanged in easy mode. The computer Code Breaker still uses only the counts, so it doesn't get the easy-mode advantage.
+- Feedback symbols are separated by spaces (`● △ △ · ·`), and the Result column is wider to fit them. `Renderer.Feedback` is built on `Renderer.Marks`, so both look alike.
+
 **Possible next steps** (out of scope for v1.0.0):
 - Publish the repository and watch the first CI run, especially the Windows job.
 - Give the module a full path (such as `github.com/<user>/codebreaker`) so it can be installed with `go install`.
