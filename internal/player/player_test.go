@@ -31,10 +31,13 @@ func mustParse(t *testing.T, s string) code.Code {
 }
 
 // fakeScreen records what a Human asked the screen to show, so tests can
-// check which mistakes were reported and how often help was shown.
+// check which mistakes were reported, how often help was shown, and when
+// the keyboard was handed over.
 type fakeScreen struct {
-	errs []error
-	help int
+	errs     []error
+	help     int
+	handoffs []string // who the keyboard was passed to, in order
+	redraws  int
 }
 
 // Go note: compile-time check that the fake really satisfies Screen.
@@ -45,6 +48,12 @@ func (s *fakeScreen) Error(err error) { s.errs = append(s.errs, err) }
 
 // Help counts the call.
 func (s *fakeScreen) Help() { s.help++ }
+
+// Handoff records who the keyboard goes to.
+func (s *fakeScreen) Handoff(next string) { s.handoffs = append(s.handoffs, next) }
+
+// Redraw counts the call.
+func (s *fakeScreen) Redraw() { s.redraws++ }
 
 // info is a round where Tom breaks the computer's code.
 var info = game.RoundInfo{
@@ -180,6 +189,108 @@ func TestHumanMakeSecret(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Computer, choose a secret code for Tom") {
 		t.Errorf("prompt doesn't name the players:\n%s", out.String())
+	}
+}
+
+// hvhInfo is a Human vs Human round where Tom makes the code for Ann.
+var hvhInfo = game.RoundInfo{
+	Number: 1, Mode: game.ModeMatch, MaxRows: game.MaxRows,
+	Maker:   game.Seat{Name: "Tom", Peg: game.PegBlue},
+	Breaker: game.Seat{Name: "Ann", Peg: game.PegRed},
+}
+
+// hiddenHuman returns a Human that types secrets hidden, answering with
+// lines, and the screen and transcript it uses.
+func hiddenHuman(lines ...string) (*Human, *fakeScreen, *strings.Builder) {
+	var out strings.Builder
+	screen := &fakeScreen{}
+	h := NewHuman(input.NewScripted(&out, lines...), screen)
+	h.Hidden = true
+	return h, screen, &out
+}
+
+// TestHiddenSecret checks the Human vs Human Code Maker (D10): the code is
+// typed hidden twice, then the keyboard is handed to the Breaker, who
+// presses Enter and sees the board again. The code never appears in the
+// output.
+func TestHiddenSecret(t *testing.T) {
+	h, screen, out := hiddenHuman("rgybk", "RGYBK", "")
+	got, err := h.MakeSecret(context.Background(), hvhInfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := mustParse(t, "RGYBK"); got != want {
+		t.Errorf("MakeSecret = %v, want %v", got, want)
+	}
+	if !slices.Equal(screen.handoffs, []string{"Ann"}) || screen.redraws != 1 {
+		t.Errorf("handoffs %v, redraws %d; want [Ann] and 1", screen.handoffs, screen.redraws)
+	}
+	if strings.Contains(strings.ToUpper(out.String()), "RGYBK") {
+		t.Errorf("secret visible in output:\n%s", out.String())
+	}
+	for _, want := range []string{"Tom, type a secret code for Ann", "Type it again", "Ann, press Enter"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output is missing %q:\n%s", want, out.String())
+		}
+	}
+}
+
+// TestHiddenSecretMistakes checks that a mistyped code and a second entry
+// that doesn't match are both reported, and the Maker starts again
+// without the keyboard being handed over early.
+func TestHiddenSecretMistakes(t *testing.T) {
+	h, screen, _ := hiddenHuman(
+		"rgyrk",          // duplicate color: asked again
+		"rgybk", "wpogr", // don't match: start again
+		"rgybk", "rgybk", "")
+	got, err := h.MakeSecret(context.Background(), hvhInfo)
+	if err != nil || got != mustParse(t, "RGYBK") {
+		t.Fatalf("MakeSecret = %v, %v; want RGYBK, nil", got, err)
+	}
+	if len(screen.errs) != 2 {
+		t.Fatalf("reported %d errors, want 2: %v", len(screen.errs), screen.errs)
+	}
+	var dup *code.DuplicateColorError
+	if !errors.As(screen.errs[0], &dup) {
+		t.Errorf("error 1 = %v, want *code.DuplicateColorError", screen.errs[0])
+	}
+	if !errors.Is(screen.errs[1], ErrSecretMismatch) {
+		t.Errorf("error 2 = %v, want ErrSecretMismatch", screen.errs[1])
+	}
+	if len(screen.handoffs) != 1 {
+		t.Errorf("handed off %d times, want 1", len(screen.handoffs))
+	}
+}
+
+// TestSecretMismatchIsFriendly checks the message the screen shows for a
+// mismatch, through the Friendly method that ui looks for.
+func TestSecretMismatchIsFriendly(t *testing.T) {
+	f, ok := ErrSecretMismatch.(interface{ Friendly() string })
+	if !ok || !strings.Contains(f.Friendly(), "don't match") {
+		t.Errorf("ErrSecretMismatch has no suitable Friendly message")
+	}
+	if !strings.Contains(ErrSecretMismatch.Error(), "differ") {
+		t.Errorf("ErrSecretMismatch.Error() = %q", ErrSecretMismatch.Error())
+	}
+}
+
+// TestHiddenSecretHelpAndQuit checks help and quit at each of the three
+// prompts: first entry, second entry, and the Breaker's "press Enter".
+// Help asks again; quit stops at once.
+func TestHiddenSecretHelpAndQuit(t *testing.T) {
+	h, screen, _ := hiddenHuman("?", "rgybk", "?", "rgybk", "?", "")
+	if _, err := h.MakeSecret(context.Background(), hvhInfo); err != nil {
+		t.Fatal(err)
+	}
+	if screen.help != 3 {
+		t.Errorf("help shown %d times, want 3", screen.help)
+	}
+
+	for _, lines := range [][]string{{"q"}, {"rgybk", "q"}, {"rgybk", "rgybk", "q"}} {
+		h, _, _ := hiddenHuman(lines...)
+		if _, err := h.MakeSecret(context.Background(), hvhInfo); !errors.Is(err, input.ErrQuit) {
+			t.Errorf("lines %q: MakeSecret error = %v, want ErrQuit", lines, err)
+		}
 	}
 }
 

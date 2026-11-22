@@ -8,8 +8,9 @@
 // call Line whenever they need an answer. Tests use NewScripted to feed in
 // a fixed list of lines, so whole games run without a keyboard.
 //
-// Hidden input for a human Code Maker (typing a secret nobody can see)
-// arrives in v0.5.0, together with the golang.org/x/term dependency.
+// Secret reads a code without showing it, for a human Code Maker in
+// Human vs Human. It uses golang.org/x/term when the input is a real
+// terminal, and reads an ordinary line otherwise.
 //
 // # Go concepts shown here
 //
@@ -19,6 +20,8 @@
 //   - context.Context cancellation (Ctrl-C while waiting for input)
 //   - sync.Once for starting something exactly once
 //   - Closing a channel, and the "comma ok" receive that detects it
+//   - Type assertions, and the nil-interface trap
+//   - defer for cleanup that must always happen (restoring the terminal)
 //
 // Search for "Go note:" to find the explanation of each one.
 package input

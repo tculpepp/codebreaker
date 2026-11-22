@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"strings"
 
 	"codebreaker/internal/game"
 	"codebreaker/internal/input"
@@ -30,9 +31,26 @@ const (
 
 // Names used for the players.
 const (
-	defaultName  = "Player"   // used when the player just presses Enter
+	defaultName  = "Player"   // used when the first player just presses Enter
+	defaultName2 = "Player 2" // used when the second player just presses Enter
 	computerName = "Computer" // the computer's seat
 )
+
+// nameTakenError reports a second player choosing the first player's name,
+// which would make the screens impossible to follow.
+type nameTakenError struct {
+	name string
+}
+
+// Error implements error.
+func (e nameTakenError) Error() string {
+	return fmt.Sprintf("app: name %q is already taken", e.name)
+}
+
+// Friendly returns the message shown to the player (see ui.Friendly).
+func (e nameTakenError) Friendly() string {
+	return e.name + " is already playing. Please choose a different name."
+}
 
 // Run plays Codebreaker, reading the player's answers from in and drawing
 // on out, until the player quits. seed fixes every random choice (the
@@ -92,10 +110,13 @@ func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand) 
 
 // state is one screen of the app's flow (implementation-plan.md §5):
 //
-//	stateName ──▶ stateMainMenu ──Match───────────────▶ statePlay
-//	                   │  ▲      └─Single─▶ stateChooseRole ──▶ statePlay
-//	                   │  └────New game── statePlayAgain ◀───────────┘
-//	                   └──Quit──▶ stateDone ◀──Quit──┘
+//	stateName ─▶ stateMainMenu ─▶ stateChooseOpponent ─person─▶ stateSecondName
+//	                 ▲   │                │ computer                 │
+//	                 │   │                ▼                          ▼
+//	                 │   │   Match: statePlay  ·  Single: stateChooseRole ─▶ statePlay
+//	                 │   │                                                      │
+//	                 │   └─Quit─▶ stateDone ◀─Quit─ statePlayAgain ◀────────────┘
+//	                 └───────────────New game──────────┘
 //
 // Go note: this is a "state machine". Each state has its own step method
 // that does one screen's work and returns the next state. The main loop
@@ -106,22 +127,26 @@ type state int
 
 // The app's states, in the order a player usually meets them.
 const (
-	stateName       state = iota // ask the player's name
-	stateMainMenu                // choose Match, Single game or Quit
-	stateChooseRole              // Single game only: Maker, Breaker or coin flip
-	statePlay                    // show the line-up, confirm, and play
-	statePlayAgain               // offer another game
-	stateDone                    // leave the app
+	stateName           state = iota // ask the first player's name
+	stateMainMenu                    // choose Match, Single game or Quit
+	stateChooseOpponent              // the computer or another person
+	stateSecondName                  // ask the second person's name
+	stateChooseRole                  // Single game only: who makes the code
+	statePlay                        // show the line-up, confirm, and play
+	statePlayAgain                   // offer another game
+	stateDone                        // leave the app
 )
 
 // session holds what the steps share: the input and screen, the random
 // generator, and the choices made so far.
 type session struct {
-	p    input.Prompter
-	r    *ui.Renderer
-	rng  *rand.Rand
-	name string      // the human player's name
-	cfg  game.Config // the game chosen in the menus
+	p       input.Prompter
+	r       *ui.Renderer
+	rng     *rand.Rand
+	name    string      // the first player's name (seat 1, Blue)
+	name2   string      // the second person's name (seat 2, Red), in Human vs Human
+	vsHuman bool        // whether seat 2 is a person rather than the computer
+	cfg     game.Config // the game chosen in the menus
 }
 
 // play runs the state machine from the welcome screen until stateDone or
@@ -147,6 +172,10 @@ func (s *session) step(ctx context.Context, st state) (state, error) {
 		return s.askName(ctx)
 	case stateMainMenu:
 		return s.mainMenu(ctx)
+	case stateChooseOpponent:
+		return s.chooseOpponent(ctx)
+	case stateSecondName:
+		return s.askSecondName(ctx)
 	case stateChooseRole:
 		return s.chooseRole(ctx)
 	case statePlay:
@@ -158,31 +187,61 @@ func (s *session) step(ctx context.Context, st state) (state, error) {
 	}
 }
 
-// askName asks for the player's name. Pressing Enter gives defaultName.
+// askName asks for the first player's name.
 func (s *session) askName(ctx context.Context) (state, error) {
+	name, err := s.readName(ctx, " Your name (Enter for "+defaultName+") ▸ ", defaultName, "")
+	if err != nil {
+		return stateDone, err
+	}
+	s.name = name
+	return stateMainMenu, nil
+}
+
+// askSecondName asks for the second person's name, which must differ from
+// the first player's.
+func (s *session) askSecondName(ctx context.Context) (state, error) {
+	prompt := " Second player's name (Enter for " + defaultName2 + ") ▸ "
+	name, err := s.readName(ctx, prompt, defaultName2, s.name)
+	if err != nil {
+		return stateDone, err
+	}
+	s.name2 = name
+	if s.cfg.Mode == game.ModeSingle {
+		return stateChooseRole, nil
+	}
+	return statePlay, nil
+}
+
+// readName asks for a name until it gets one that isn't taken (ignoring
+// case). Pressing Enter gives def; help shows the help and asks again.
+func (s *session) readName(ctx context.Context, prompt, def, taken string) (string, error) {
 	for {
-		name, err := s.p.Line(ctx, " Your name (Enter for "+defaultName+") ▸ ")
+		name, err := s.p.Line(ctx, prompt)
 		if errors.Is(err, input.ErrHelp) {
 			s.r.Help()
 			continue
 		}
 		if err != nil {
-			return stateDone, err
+			return "", err
 		}
 		if name == "" {
-			name = defaultName
+			name = def
 		}
-		s.name = name
-		return stateMainMenu, nil
+		// Go note: strings.EqualFold compares two strings ignoring case,
+		// so "Tom" and "TOM" count as the same name.
+		if strings.EqualFold(name, taken) {
+			s.r.Error(nameTakenError{name: taken})
+			continue
+		}
+		return name, nil
 	}
 }
 
-// mainMenu offers a match, a Single game, or quitting. Playing against
-// another person arrives in v0.5.0.
+// mainMenu offers a match, a Single game, or quitting.
 func (s *session) mainMenu(ctx context.Context) (state, error) {
 	choice, err := s.choose(ctx, "Main menu", []string{
-		fmt.Sprintf("Match against the computer (first to %d points)", game.TargetScore),
-		"Single game against the computer",
+		fmt.Sprintf("Match (first to %d points)", game.TargetScore),
+		"Single game (one round)",
 		"Quit",
 	})
 	switch {
@@ -191,22 +250,46 @@ func (s *session) mainMenu(ctx context.Context) (state, error) {
 	case choice == 0:
 		// The zero Config is a full match with a coin flip (D6).
 		s.cfg = game.Config{}
-		return statePlay, nil
+		return stateChooseOpponent, nil
 	case choice == 1:
-		return stateChooseRole, nil
+		s.cfg = game.Config{Mode: game.ModeSingle}
+		return stateChooseOpponent, nil
 	default:
 		return stateDone, nil
 	}
 }
 
-// chooseRole asks which role the human takes in a Single game (D13). The
-// human always sits in seat 0 and the computer in seat 1.
+// chooseOpponent asks whether to play the computer or another person at
+// the same keyboard. Computer vs Computer isn't offered (D17).
+func (s *session) chooseOpponent(ctx context.Context) (state, error) {
+	choice, err := s.choose(ctx, "Play against:", []string{"The computer", "Another person"})
+	switch {
+	case err != nil:
+		return stateDone, err
+	case choice == 1:
+		s.vsHuman = true
+		return stateSecondName, nil
+	}
+	s.vsHuman = false
+	if s.cfg.Mode == game.ModeSingle {
+		return stateChooseRole, nil
+	}
+	return statePlay, nil
+}
+
+// chooseRole asks who makes the code in a Single game (D13). The first
+// player always sits in seat 0 and the opponent in seat 1.
 func (s *session) chooseRole(ctx context.Context) (state, error) {
-	choice, err := s.choose(ctx, "Single game: which role?", []string{
+	choices := []string{
 		"Break the computer's code",
 		"Make a code for the computer to break",
 		"Flip a coin",
-	})
+	}
+	if s.vsHuman {
+		choices[0] = s.name + " breaks " + s.name2 + "'s code"
+		choices[1] = s.name2 + " breaks " + s.name + "'s code"
+	}
+	choice, err := s.choose(ctx, "Single game: who makes the code?", choices)
 	if err != nil {
 		return stateDone, err
 	}
@@ -214,11 +297,11 @@ func (s *session) chooseRole(ctx context.Context) (state, error) {
 	// a small lookup table from a menu choice to a value. choice is always
 	// 0, 1 or 2 here, because choose only returns listed choices.
 	firstMaker := [...]game.FirstMaker{
-		0: game.FirstMakerSeat1, // the computer makes, so the human breaks
-		1: game.FirstMakerSeat0, // the human makes
+		0: game.FirstMakerSeat1, // the opponent makes, so the first player breaks
+		1: game.FirstMakerSeat0, // the first player makes
 		2: game.FirstMakerCoinFlip,
 	}[choice]
-	s.cfg = game.Config{Mode: game.ModeSingle, FirstMaker: firstMaker}
+	s.cfg.FirstMaker = firstMaker
 	return statePlay, nil
 }
 
@@ -229,6 +312,15 @@ func (s *session) playGame(ctx context.Context) (state, error) {
 	seats := [2]game.Seat{
 		{Name: s.name, Peg: game.PegBlue, Player: player.NewHuman(s.p, s.r)},
 		{Name: computerName, Peg: game.PegRed, Player: player.NewComputer(s.rng)},
+	}
+	if s.vsHuman {
+		// Both people share the keyboard and screen, so both type their
+		// secrets hidden and hand the keyboard over (D10).
+		first := player.NewHuman(s.p, s.r)
+		second := player.NewHuman(s.p, s.r)
+		first.Hidden, second.Hidden = true, true
+		seats[0].Player = first
+		seats[1] = game.Seat{Name: s.name2, Peg: game.PegRed, Player: second}
 	}
 	// NewMatch only fails on a bad setup, and the menus can't produce one,
 	// so an error here would be a bug. It's still passed up, not ignored.

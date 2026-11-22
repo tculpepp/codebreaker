@@ -189,3 +189,24 @@ func TestLineReadError(t *testing.T) {
 		t.Errorf("second Line error = %v, want io.EOF", err)
 	}
 }
+
+// TestLineCancelWhileQueued checks Ctrl-C at a moment when the reader is
+// still busy with an earlier, abandoned question, so even sending the new
+// question has to wait. Line must give up on that wait too.
+func TestLineCancelWhileQueued(t *testing.T) {
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { pw.Close() })
+	p := NewTerminal(pr, io.Discard)
+
+	// Each call gets its own short deadline. The first leaves the reader
+	// blocked on the pipe, the second leaves its request queued, and the
+	// third can't even queue its request.
+	for i := range 3 {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+		_, err := p.Line(ctx, "> ")
+		cancel()
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("call %d: Line error = %v, want context.DeadlineExceeded", i+1, err)
+		}
+	}
+}

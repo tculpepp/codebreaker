@@ -1,0 +1,88 @@
+
+ CODEBREAKER
+ Break the secret code: 5 different colors, chosen from 8.
+ Type ? for help or q to quit at any prompt.
+ Your name (Enter for Player) ▸ Tom
+
+ Main menu
+   1) Match (first to 30 points)
+   2) Single game (one round)
+   3) Quit
+ Choose 1–3 ▸ 2
+
+ Play against:
+   1) The computer
+   2) Another person
+ Choose 1–2 ▸ 2
+ Second player's name (Enter for Player 2) ▸ Ann
+
+ Single game: who makes the code?
+   1) Tom breaks Ann's code
+   2) Ann breaks Tom's code
+   3) Flip a coin
+ Choose 1–3 ▸ 1
+
+ Single game: Blue Tom vs Red Ann.
+ Ann makes the code.
+ Press Enter to start ▸ 
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Ann · Breaker: Blue Tom
+┌─────┬────────────────┬────────┐
+│ Row │ Guess          │ Result │
+├─────┼────────────────┼────────┤
+└─────┴────────────────┴────────┘
+ ● right color, right spot  △ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange
+ Ann, type a secret code for Tom (hidden) ▸ (hidden)
+ Type it again to check ▸ (hidden)
+
+────────────────────────────────────────
+
+ Pass the keyboard to Tom.
+ Tom, press Enter when you're ready ▸ 
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Ann · Breaker: Blue Tom
+┌─────┬────────────────┬────────┐
+│ Row │ Guess          │ Result │
+├─────┼────────────────┼────────┤
+└─────┴────────────────┴────────┘
+ ● right color, right spot  △ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange
+ Row 1/12 (? help, q quit) ▸ rgybk
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Ann · Breaker: Blue Tom
+┌─────┬────────────────┬────────┐
+│ Row │ Guess          │ Result │
+├─────┼────────────────┼────────┤
+│   1 │ ●R ●G ●Y ●B ●K │ ●△△··  │
+└─────┴────────────────┴────────┘
+ ● right color, right spot  △ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange
+ Row 2/12 (? help, q quit) ▸ opygb
+
+ CODEBREAKER · Single game · Round 1
+ Maker: Red Ann · Breaker: Blue Tom
+┌─────┬────────────────┬────────┐
+│ Row │ Guess          │ Result │
+├─────┼────────────────┼────────┤
+│   1 │ ●R ●G ●Y ●B ●K │ ●△△··  │
+│   2 │ ●O ●P ●Y ●G ●B │ ●●●●●  │
+└─────┴────────────────┴────────┘
+ ● right color, right spot  △ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange
+
+ Round 1 over. Tom cracked the code in 2 rows!
+ Secret: ●O ●P ●Y ●G ●B
+ In a match that would score 12 points (solved in rows 1–4).
+
+ Game over.
+
+ Play again?
+   1) New game
+   2) Quit
+ Choose 1–2 ▸ 2
+
+ Thanks for playing!

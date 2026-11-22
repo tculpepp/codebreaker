@@ -5,8 +5,8 @@
  Your name (Enter for Player) ▸ Tom
 
  Main menu
-   1) Match against the computer (first to 30 points)
-   2) Single game against the computer
+   1) Match (first to 30 points)
+   2) Single game (one round)
    3) Quit
  Choose 1–3 ▸ ?
 
@@ -24,12 +24,17 @@
    Type q to quit.
 
  Main menu
-   1) Match against the computer (first to 30 points)
-   2) Single game against the computer
+   1) Match (first to 30 points)
+   2) Single game (one round)
    3) Quit
  Choose 1–3 ▸ 2
 
- Single game: which role?
+ Play against:
+   1) The computer
+   2) Another person
+ Choose 1–2 ▸ 1
+
+ Single game: who makes the code?
    1) Break the computer's code
    2) Make a code for the computer to break
    3) Flip a coin
@@ -89,8 +94,8 @@
  Choose 1–2 ▸ 1
 
  Main menu
-   1) Match against the computer (first to 30 points)
-   2) Single game against the computer
+   1) Match (first to 30 points)
+   2) Single game (one round)
    3) Quit
  Choose 1–3 ▸ 3
 

@@ -35,17 +35,20 @@ const (
 // shows them all.
 type Renderer struct {
 	w     io.Writer
-	mode  game.Mode   // mode of the latest round, used by the summaries
-	turns []game.Turn // turns played in the current round, oldest first
+	tty   bool           // w is a real terminal, so Clear may use escape codes
+	mode  game.Mode      // mode of the latest round, used by the summaries
+	info  game.RoundInfo // the current round, for Redraw
+	turns []game.Turn    // turns played in the current round, oldest first
 }
 
 // Go note: a compile-time check that *Renderer satisfies game.Observer, so
 // it can be passed straight to game.NewMatch.
 var _ game.Observer = (*Renderer)(nil)
 
-// NewRenderer returns a Renderer that writes to w.
+// NewRenderer returns a Renderer that writes to w. It checks once whether
+// w is a terminal, which decides how Clear works.
 func NewRenderer(w io.Writer) *Renderer {
-	return &Renderer{w: w}
+	return &Renderer{w: w, tty: isTerminal(w)}
 }
 
 // write sends s to the output in one call.
@@ -123,6 +126,7 @@ func (r *Renderer) Board(info game.RoundInfo, turns []game.Turn) {
 // turns and draws an empty board.
 func (r *Renderer) RoundStarted(info game.RoundInfo) {
 	r.mode = info.Mode
+	r.info = info
 	// Go note: setting a slice to nil empties it. Appending to a nil slice
 	// works fine, so no make is needed. Reusing the old slice with
 	// r.turns[:0] would also work, but nil is clearer.

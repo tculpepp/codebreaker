@@ -23,6 +23,18 @@ func (e *ChoiceError) Error() string {
 	return fmt.Sprintf("ui: choice %q is not a number from 1 to %d", e.Input, e.N)
 }
 
+// Friendly is implemented by errors that carry their own message for the
+// player. FriendlyMessage shows that message, so other packages can make
+// their errors friendly without ui knowing about them.
+//
+// Go note: this interface is how package player's "the two codes don't
+// match" error gets a friendly message. player never imports ui; its error
+// type just has a Friendly method, and that's enough to satisfy this
+// interface.
+type Friendly interface {
+	Friendly() string
+}
+
 // ParseChoice reads a menu answer. s must be a number from 1 to n, and the
 // result is its 0-based index (typing "1" gives 0), ready for indexing the
 // list of choices. Anything else returns a *ChoiceError.
@@ -56,10 +68,16 @@ func FriendlyMessage(err error) string {
 		dup     *code.DuplicateColorError
 		repeat  *game.RepeatGuessError
 		choice  *ChoiceError
+		self    Friendly
 	)
 	switch {
 	case err == nil:
 		return ""
+	// Go note: errors.As also accepts a pointer to an interface variable.
+	// It then finds the first error in the chain whose type has the
+	// interface's methods, whatever that type is.
+	case errors.As(err, &self):
+		return self.Friendly()
 	case errors.As(err, &invalid):
 		// Go note: %q on a rune prints it in single quotes, like 'X', and
 		// shows invisible characters as escapes, so odd input is visible.

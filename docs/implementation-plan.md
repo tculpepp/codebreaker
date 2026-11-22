@@ -350,12 +350,12 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 | ✅ v0.2.0 | `game`: Round, `Points`, `CheckRepeat`, Match (Single + to-30), coin flip |
 | ✅ v0.3.0 | `input`, plain UI, Human player, Computer as Maker. **First playable version: Single game, a human breaks the computer's code.** |
 | ✅ v0.4.0 | Solver, Computer as Breaker, **full Match mode against the computer** |
-| v0.5.0 | Human vs Human: hidden input and handoff |
+| ✅ v0.5.0 | Human vs Human: hidden input and handoff |
 | v1.0.0 | Colors, Windows support, `-ascii`, flags, help, README (including the "learning Go" guide and concept map), CI on 3 OSes |
 
 ## 10. Status and next step
 
-**Done:** v0.1.0 (`code`), v0.2.0 (`game`), v0.3.0 (`input`, `ui`, `player`, `app`, `cmd/codebreaker`) and v0.4.0 (`solver`, the computer as Code Breaker, the menu, full matches) are tagged. Every `internal` package has 100% test coverage and is clean under vet and staticcheck. `cmd/codebreaker` has no tests: `main` only wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit or end of input, and 130 for Ctrl-C.
+**Done:** v0.1.0 (`code`), v0.2.0 (`game`), v0.3.0 (`input`, `ui`, `player`, `app`, `cmd/codebreaker`), v0.4.0 (`solver`, the computer as Code Breaker, the menu, full matches) and v0.5.0 (Human vs Human) are tagged. Every `internal` package has 100% test coverage except `input` (89.7%), and all are clean under vet and staticcheck. The untested part of `input` is the real-terminal code in `hidden.go`, which can't run without a terminal; it was checked by hand in a pseudo-terminal (see below). `cmd/codebreaker` has no tests: `main` only wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit or end of input, and 130 for Ctrl-C.
 
 **How `game` differs from the sketches above:**
 - `Config.FirstMaker` is an enum type, and its zero value means a coin flip.
@@ -377,8 +377,16 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 - CPU vs CPU (D17) is tested in `player` (`TestComputerVsComputer`): 30 seeded matches, each ending with exactly one player at 30 or more, and the same seed replays the same match.
 - Known limitation: when the computer is breaking, the board is drawn again after every one of its guesses, so its rows scroll past quickly. Clearing and redrawing the screen in v1.0.0 fixes this.
 
-**Next: v0.5.0, Human vs Human.** Build these test-first:
-1. `input.Prompter.Secret`: hidden input via `golang.org/x/term` when the input is a terminal (found with a type assertion on `NewTerminal`'s reader), and plain line input otherwise, so scripted tests still work. Restore the terminal with `defer`.
-2. `player.Human.MakeSecret`: in Human vs Human, the secret is typed hidden twice and must match, then `ui.Renderer.Handoff` shows "Pass the keyboard to Bob — press Enter". Against the computer, the secret is still typed plainly.
-3. `ui`: `Handoff` and `Clear`. Clearing works only in a real terminal; when output is piped, a separator line is printed instead.
-4. `app`: a main-menu choice for the opponent (computer or human) and a second name prompt. Assign Blue and Red to the two players.
+**How v0.5.0 differs from the sketches above:**
+- Dependency: `golang.org/x/term` is pinned at **v0.40.0**, the last release that supports Go 1.24. Later releases need Go 1.25 or 1.26.
+- `input`: the background reader now reads a line only when asked, and never reads ahead, so a hidden read never competes with a normal read that's already waiting. `Secret` uses `term.ReadPassword` when the input is a terminal, and always restores the terminal with `defer`, including after Ctrl-C. Otherwise it reads a normal line, and a scripted transcript shows `(hidden)`. The terminal code sits behind a small `hiddenInput` interface, so tests can use a fake.
+- `ui`: `Clear` sends codes to clear the screen and the scrollback in a real terminal, and draws a separator line otherwise. `Handoff(next)` clears and names the next player. `Redraw` draws the current board again after a handoff. The new `Friendly` interface lets an error from another package carry its own message for the player; this is used by the mismatch error from `player` and the name-taken error from `app`.
+- `player.Human`: setting `Hidden` turns on Human vs Human secrets. The code is typed hidden twice, and a mismatch is reported as `ErrSecretMismatch` and starts over. Then comes `Handoff`, the Breaker presses Enter, and the board is redrawn. `Screen` now has `Handoff` and `Redraw`.
+- `app`: name → main menu (Match, Single, Quit) → opponent (computer or person) → second name (it must differ from the first, ignoring case; Enter gives "Player 2") → role (Single only, with both names) → play. The first player is always Blue and the second Red.
+- Checked by hand in a pseudo-terminal (`script`): in a Human vs Human game, the secret first appears on screen when the Breaker types it as a guess; the clear-screen codes are sent; and Ctrl-C during hidden typing exits with 130 and leaves the terminal echo on.
+
+**Next: v1.0.0, polish and release.** Build these test-first:
+1. `ui`: an `Options` type (`NoColor`, `ASCII`, `ForceTTY`) for `NewRenderer`. Colored pegs using the ANSI palette in §3, a bold ● and a yellow △. Color is turned off for `-no-color`, `NO_COLOR`, `TERM=dumb`, or output that isn't a terminal. A test checks that removing the ANSI codes from the colored output gives exactly the plain output. In a terminal, the board is redrawn in place each turn, which fixes the computer's rows scrolling past.
+2. `-ascii`: swap the symbols for `* ^ + - |`. Add `vt_windows.go` and `vt_other.go` with build tags, to turn on ANSI support on Windows.
+3. Flags in `main` and `app.Options`: `-mode`, `-opponent`, `-role`, `-seed`, `-no-color`, `-ascii`. Flags skip the matching menu screens. Bad flags print usage and exit with 2.
+4. README: how to play, the flags, and the "learning Go" guide with the concept map. CI on Linux, macOS and Windows.

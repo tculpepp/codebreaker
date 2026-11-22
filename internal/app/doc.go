@@ -10,10 +10,10 @@
 // scripted input and a seeded random generator.
 //
 // The screens form a small state machine (see the state type): name, main
-// menu, role choice for a Single game, play, and play again. This version
-// plays against the computer only, as a full match or a Single game in
-// either role. Human vs Human arrives in v0.5.0, and command-line flags in
-// v1.0.0.
+// menu, opponent, second name (Human vs Human), role choice for a Single
+// game, play, and play again. A match or a Single game can be played
+// against the computer or another person at the same keyboard.
+// Command-line flags arrive in v1.0.0.
 //
 // # Go concepts shown here
 //

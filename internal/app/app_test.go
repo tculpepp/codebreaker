@@ -49,6 +49,8 @@ const (
 	menuMatch  = "1" // main menu: Match against the computer
 	menuSingle = "2" // main menu: Single game against the computer
 	menuQuit   = "3" // main menu: Quit
+	vsComputer = "1" // opponent menu: the computer
+	vsHuman    = "2" // opponent menu: another person
 	roleBreak  = "1" // role menu: break the computer's code
 	roleMake   = "2" // role menu: make a code for the computer
 	roleFlip   = "3" // role menu: flip a coin
@@ -90,7 +92,7 @@ func TestSingleTranscript(t *testing.T) {
 	s := firstSecret(1).String()
 	wrong := wrongGuess(firstSecret(1))
 	out, err := script(t, context.Background(), 1,
-		"Tom", "?", menuSingle, roleBreak, start,
+		"Tom", "?", menuSingle, vsComputer, roleBreak, start,
 		"rrr", wrong, wrong, s, "5", againNew, menuQuit)
 	if err != nil {
 		t.Fatal(err)
@@ -124,7 +126,7 @@ func TestMatchTranscript(t *testing.T) {
 	secret := code.Random(rng)
 
 	out, err := script(t, context.Background(), seed,
-		"Tom", menuMatch, start, secret.String(), "opygb", "q")
+		"Tom", menuMatch, vsComputer, start, secret.String(), "opygb", "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +149,7 @@ func TestMatchTranscript(t *testing.T) {
 // and the computer breaks it.
 func TestSingleAsMaker(t *testing.T) {
 	out, err := script(t, context.Background(), 1,
-		"Tom", menuSingle, roleMake, start, "rgybk", againQuit)
+		"Tom", menuSingle, vsComputer, roleMake, start, "rgybk", againQuit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +164,7 @@ func TestSingleAsMaker(t *testing.T) {
 // picked. Either result is fine; quitting at the first prompt works for
 // both roles.
 func TestSingleCoinFlip(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, roleFlip, start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsComputer, roleFlip, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,10 +173,108 @@ func TestSingleCoinFlip(t *testing.T) {
 	}
 }
 
+// TestHumanVsHumanSingle plays a Single game between two people and
+// compares it with a saved transcript. Ann makes the code, typed hidden
+// twice; the keyboard passes to Tom, who solves it on row 2. The code
+// must not appear anywhere before Tom types it as a guess.
+func TestHumanVsHumanSingle(t *testing.T) {
+	out, err := script(t, context.Background(), 1,
+		"Tom", menuSingle, vsHuman, "Ann", roleBreak, start,
+		"opygb", "opygb", "", // Ann types the code twice, Tom presses Enter
+		"rgybk", "opygb", againQuit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Single game: Blue Tom vs Red Ann.",
+		"Ann makes the code.",
+		"Ann, type a secret code for Tom (hidden) ▸ (hidden)",
+		"Pass the keyboard to Tom.",
+		"Tom cracked the code in 2 rows!",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("transcript is missing %q", want)
+		}
+	}
+	firstGuess := strings.Index(out, "▸ opygb")
+	if before := out[:firstGuess]; strings.Contains(strings.ToUpper(before), "OPYGB") {
+		t.Errorf("secret visible before Tom guessed it")
+	}
+	checkGolden(t, "hvh_single_transcript", out)
+}
+
+// TestHumanVsHumanMatch plays a whole match between two people, to the
+// end. Every round, the Maker types a code and the Breaker guesses it on
+// row 1 for 12 points. Roles swap each round, so the first Breaker plays
+// rounds 1, 3 and 5, reaches 36 in round 5 and wins at once, with the
+// other player on 24 (D5: the match ends on the round that reaches 30).
+func TestHumanVsHumanMatch(t *testing.T) {
+	const seed = 1
+	// The coin flip is the first use of the generator; seat 0 is Tom.
+	firstMaker, firstBreaker := "Ann", "Tom"
+	if newRNG(seed).IntN(2) == 0 {
+		firstMaker, firstBreaker = "Tom", "Ann"
+	}
+
+	lines := []string{"Tom", menuMatch, vsHuman, "Ann", start}
+	for _, secret := range []string{"rgybk", "wpogr", "kbyog", "gorwp", "ypkbw"} {
+		lines = append(lines, secret, secret, "", secret)
+	}
+	lines = append(lines, againQuit)
+
+	out, err := script(t, context.Background(), seed, lines...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Coin flip: " + firstMaker + " makes the first code.",
+		firstBreaker + " wins the match with 36 points after 5 rounds!",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+	if got := strings.Count(out, "Pass the keyboard to"); got != 5 {
+		t.Errorf("keyboard handed over %d times, want 5 (once per round)", got)
+	}
+}
+
+// TestHumanVsHumanRoles checks the role menu names both people, and that
+// the second choice makes the first player the Maker.
+func TestHumanVsHumanRoles(t *testing.T) {
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsHuman, "Ann", roleMake, start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Tom breaks Ann's code", "Ann breaks Tom's code", "Tom makes the code."} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestSecondName checks the second player's name: Enter gives "Player 2",
+// help works, and a name already taken (in any case) is refused with a
+// friendly message.
+func TestSecondName(t *testing.T) {
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsHuman, "?", "TOM", "", roleBreak, start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"How to play", "Tom is already playing. Please choose a different name.", "Red Player 2"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+	if err := (nameTakenError{name: "Tom"}); !strings.Contains(err.Error(), "Tom") {
+		t.Errorf("nameTakenError.Error() = %q", err.Error())
+	}
+}
+
 // TestDefaultName checks that pressing Enter at the name prompt plays as
 // "Player".
 func TestDefaultName(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "", menuSingle, roleBreak, start, "q")
+	out, err := script(t, context.Background(), 1, "", menuSingle, vsComputer, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +286,7 @@ func TestDefaultName(t *testing.T) {
 // TestHelpAtNamePrompt checks that help works at the very first prompt,
 // and that the question is asked again afterwards.
 func TestHelpAtNamePrompt(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "?", "Ann", menuSingle, roleBreak, start, "q")
+	out, err := script(t, context.Background(), 1, "?", "Ann", menuSingle, vsComputer, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +301,7 @@ func TestHelpAtNamePrompt(t *testing.T) {
 // TestHelpAtStartPrompt checks that help works at "Press Enter to start",
 // and that the question is asked again.
 func TestHelpAtStartPrompt(t *testing.T) {
-	out, err := script(t, context.Background(), 1, "Tom", menuSingle, roleBreak, "?", start, "q")
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, vsComputer, roleBreak, "?", start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +315,7 @@ func TestHelpAtStartPrompt(t *testing.T) {
 // (nil error, exit code 0) that says goodbye (D16).
 func TestQuitting(t *testing.T) {
 	s := firstSecret(1).String()
-	single := []string{"Tom", menuSingle, roleBreak, start}
+	single := []string{"Tom", menuSingle, vsComputer, roleBreak, start}
 	tests := []struct {
 		name  string
 		lines []string
@@ -224,8 +324,10 @@ func TestQuitting(t *testing.T) {
 		{name: "input ends at name", lines: nil},
 		{name: "quit from main menu", lines: []string{"Tom", menuQuit}},
 		{name: "q at main menu", lines: []string{"Tom", "q"}},
-		{name: "q at role menu", lines: []string{"Tom", menuSingle, "q"}},
-		{name: "q at start", lines: []string{"Tom", menuSingle, roleBreak, "q"}},
+		{name: "q at opponent menu", lines: []string{"Tom", menuSingle, "q"}},
+		{name: "q at second name", lines: []string{"Tom", menuSingle, vsHuman, "q"}},
+		{name: "q at role menu", lines: []string{"Tom", menuSingle, vsComputer, "q"}},
+		{name: "q at start", lines: []string{"Tom", menuSingle, vsComputer, roleBreak, "q"}},
 		{name: "q mid-round", lines: append(single, "q")},
 		{name: "input ends mid-round", lines: single},
 		{name: "quit from play-again", lines: append(single, s, againQuit)},
@@ -298,9 +400,10 @@ func TestCtrlC(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out strings.Builder
-	// Questions: name, main menu, role, start, then the first guess (5th).
-	lines := input.NewScripted(&out, "Tom", menuSingle, roleBreak, start, "RGYBK")
-	p := &cancelOnCall{Prompter: lines, n: 5, cancel: cancel}
+	// Questions: name, main menu, opponent, role, start, then the first
+	// guess (6th).
+	lines := input.NewScripted(&out, "Tom", menuSingle, vsComputer, roleBreak, start, "RGYBK")
+	p := &cancelOnCall{Prompter: lines, n: 6, cancel: cancel}
 
 	err := run(ctx, p, ui.NewRenderer(&out), newRNG(1))
 	if !errors.Is(err, context.Canceled) {

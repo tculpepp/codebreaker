@@ -11,8 +11,10 @@
 // report mistakes. That keeps the board from being drawn twice.
 //
 // This version draws plain text that is simply appended to the output, so
-// it works in any terminal and when piped to a file. Colors, clearing the
-// screen, an ASCII-only mode and Windows support arrive in v1.0.0.
+// it works in any terminal and when piped to a file. The screen is only
+// cleared when the keyboard passes between two people (Handoff), and only
+// in a real terminal. Colors, redrawing in place each turn, an ASCII-only
+// mode and Windows support arrive in v1.0.0.
 //
 // # Go concepts shown here
 //
@@ -21,6 +23,8 @@
 //   - errors.As for picking out an error's concrete type
 //   - fmt widths, which count runes (characters) rather than bytes
 //   - Golden-file tests and a custom -update test flag
+//   - errors.As with an interface target (the Friendly interface)
+//   - ANSI escape codes, and detecting a terminal with a type assertion
 //
 // Search for "Go note:" to find the explanation of each one.
 package ui
