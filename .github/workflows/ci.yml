@@ -87,10 +87,10 @@ jobs:
         run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./...
       # The browser-only code only builds for WebAssembly, so it's checked
       # separately.
+      # staticcheck is installed first, built for this machine: with GOOS
+      # set, `go run` would build it as WebAssembly, which can't run here.
       - name: vet and staticcheck (WebAssembly-only code)
-        env:
-          GOOS: js
-          GOARCH: wasm
         run: |
-          go vet ./internal/web/bridge ./cmd/web
-          go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./internal/web/bridge ./cmd/web
+          go install honnef.co/go/tools/cmd/staticcheck@2026.2.2
+          GOOS=js GOARCH=wasm go vet ./internal/web/bridge ./cmd/web
+          GOOS=js GOARCH=wasm "$(go env GOPATH)/bin/staticcheck" ./internal/web/bridge ./cmd/web

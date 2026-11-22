@@ -2,3 +2,4 @@
 # endings as LF on every system, or Windows checkouts would turn them into
 # CRLF and every golden test would fail.
 *.golden text eol=lf
+*.golden.json text eol=lf
