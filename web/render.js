@@ -72,8 +72,10 @@ globalThis.codebreakerRender = function (json) {
   // have, such as a menu; those are skipped.
   app.replaceChildren(...screen(view).filter((part) => part != null));
 
+  // The tab says which screen this is, then the game's name, unless the
+  // screen's heading already is the game's name.
   const heading = view.title || (view.board && view.board.title) || "";
-  document.title = heading ? heading + " · Codebreaker" : "Codebreaker";
+  document.title = heading && heading !== "Codebreaker" ? heading + " · Codebreaker" : "Codebreaker";
   announce(view, previous);
 
   // Put the keyboard focus back on the same button if it's still there;

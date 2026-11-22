@@ -280,6 +280,8 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 - `.github/workflows/pages.yml` builds `dist/` with the Go version from go.mod and deploys it to GitHub Pages on every `v*` tag (or by hand). Pages is set to deploy from Actions, and the `github-pages` environment allows `v*` tags.
 - Checked in headless Chrome: Chrome reports no installability errors and no manifest errors; with the server stopped, a reload still loads the game from the cache; a rebuild shows the Reload banner, and Reload switches versions and deletes the old cache; light mode.
 
+**v2.0.1:** the tab title on the name screen read "Codebreaker · Codebreaker", because that screen's heading is the game's name; it now reads "Codebreaker".
+
 **Checklist for a real Chromebook** (by hand, from the published address):
 1. Open https://tculpepp.github.io/codebreaker/ in Chrome. The name screen appears.
 2. Install it (Install in the address bar, or ⋮ → Cast, save and share → Install page as app). Codebreaker appears in the launcher with the peg icon.
