@@ -33,7 +33,7 @@ var (
 // read.
 func newTestRenderer() (*Renderer, *strings.Builder) {
 	var out strings.Builder
-	return NewRenderer(&out), &out
+	return NewRenderer(&out, Options{}), &out
 }
 
 // TestPegCodeFeedback checks the small building blocks every screen uses.
@@ -219,7 +219,7 @@ func TestNoRoundStartedMeansMatch(t *testing.T) {
 // check in render.go guarantees: a *Renderer can be handed to
 // game.NewMatch as its Observer.
 func TestRendererIsAnObserver(t *testing.T) {
-	var obs game.Observer = NewRenderer(&strings.Builder{})
+	var obs game.Observer = NewRenderer(&strings.Builder{}, Options{})
 	_ = obs
 }
 

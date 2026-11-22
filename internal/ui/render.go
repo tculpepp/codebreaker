@@ -9,18 +9,8 @@ import (
 	"codebreaker/internal/game"
 )
 
-// The feedback symbols (requirements.md D9). Exact matches come first,
-// then partial ones, then empty slots, so the order never gives away which
-// peg matched.
-const (
-	symExact   = "●" // right color, right spot (black key peg)
-	symPartial = "△" // right color, wrong spot (white key peg)
-	symEmpty   = "·" // no match for this slot
-	symPeg     = "●" // a code peg; colored in v1.0.0
-)
-
-// Board column widths, in characters, not counting the │ borders. The
-// guess column fits 5 pegs of 2 characters with spaces between and a space
+// Board column widths, in characters, not counting the borders. The guess
+// column fits 5 pegs of 2 characters with spaces between and a space
 // either side: 1 + 14 + 1 = 16.
 const (
 	colRow    = 5
@@ -28,14 +18,16 @@ const (
 	colResult = 8
 )
 
-// Renderer draws the game as plain text on an io.Writer.
+// Renderer draws the game on an io.Writer.
 //
 // It remembers the current round's mode and the turns played so far,
 // because the Observer events only carry the newest turn and the board
 // shows them all.
 type Renderer struct {
 	w     io.Writer
-	tty   bool           // w is a real terminal, so Clear may use escape codes
+	tty   bool           // w is a terminal: redraw in place, clear for handoffs
+	color bool           // use ANSI colors
+	sym   symbols        // the characters to draw with (Unicode or ASCII)
 	mode  game.Mode      // mode of the latest round, used by the summaries
 	info  game.RoundInfo // the current round, for Redraw
 	turns []game.Turn    // turns played in the current round, oldest first
@@ -45,10 +37,12 @@ type Renderer struct {
 // it can be passed straight to game.NewMatch.
 var _ game.Observer = (*Renderer)(nil)
 
-// NewRenderer returns a Renderer that writes to w. It checks once whether
-// w is a terminal, which decides how Clear works.
-func NewRenderer(w io.Writer) *Renderer {
-	return &Renderer{w: w, tty: isTerminal(w)}
+// NewRenderer returns a Renderer that writes to w, styled as o says. It
+// checks once whether w is a terminal and whether color is allowed (see
+// Options).
+func NewRenderer(w io.Writer, o Options) *Renderer {
+	tty, color, sym := newStyle(w, o)
+	return &Renderer{w: w, tty: tty, color: color, sym: sym}
 }
 
 // write sends s to the output in one call.
@@ -63,11 +57,24 @@ func (r *Renderer) write(s string) {
 	io.WriteString(r.w, s)
 }
 
+// Prompt formats text as a prompt, with a space before it and the prompt
+// arrow after it: " Row 3/12 ▸ ". Players and the app build every prompt
+// with it, so prompts follow the symbol set too.
+func (r *Renderer) Prompt(text string) string {
+	return " " + text + " " + r.sym.arrow + " "
+}
+
+// Range formats a range of numbers, such as "1–3", with the symbol set's
+// dash.
+func (r *Renderer) Range(lo, hi int) string {
+	return fmt.Sprintf("%d%s%d", lo, r.sym.dash, hi)
+}
+
 // Peg returns one code peg as it appears on screen: a peg symbol followed
-// by the color's letter, such as "●R". The letter means the game is
-// playable without color.
+// by the color's letter, such as "●R", in that color when color is on.
+// The letter means the game is playable without color.
 func (r *Renderer) Peg(c code.Color) string {
-	return symPeg + string(c.Abbrev())
+	return r.paint(pegColors[c], r.sym.peg+string(c.Abbrev()))
 }
 
 // Code returns all 5 pegs of c separated by spaces: "●R ●G ●Y ●B ●K".
@@ -82,12 +89,13 @@ func (r *Renderer) Code(c code.Code) string {
 }
 
 // Feedback returns the result of a guess as exactly 5 symbols: one ● per
-// exact match, then one △ per partial match, then · for the rest.
+// exact match (bold), then one △ per partial match (yellow), then a dim ·
+// for the rest.
 func (r *Renderer) Feedback(f code.Feedback) string {
 	empty := code.Length - f.Exact - f.Partial
-	return strings.Repeat(symExact, f.Exact) +
-		strings.Repeat(symPartial, f.Partial) +
-		strings.Repeat(symEmpty, empty)
+	return r.paint(sgrBold, strings.Repeat(r.sym.exact, f.Exact)) +
+		r.paint(sgrYellow, strings.Repeat(r.sym.partial, f.Partial)) +
+		r.paint(sgrDim, strings.Repeat(r.sym.empty, empty))
 }
 
 // Board draws the full game screen for a round: a header with the mode,
@@ -95,35 +103,43 @@ func (r *Renderer) Feedback(f code.Feedback) string {
 // feedback; and a legend.
 func (r *Renderer) Board(info game.RoundInfo, turns []game.Turn) {
 	var b strings.Builder
+	dot := r.sym.dot
 
 	b.WriteString("\n")
-	fmt.Fprintf(&b, " CODEBREAKER · %s · Round %d\n", modeTitle(info.Mode), info.Number)
-	fmt.Fprintf(&b, " Maker: %s · Breaker: %s\n", seatLabel(info.Maker), seatLabel(info.Breaker))
+	fmt.Fprintf(&b, " CODEBREAKER %s %s %s Round %d\n", dot, modeTitle(info.Mode), dot, info.Number)
+	fmt.Fprintf(&b, " Maker: %s %s Breaker: %s\n", r.seatLabel(info.Maker), dot, r.seatLabel(info.Breaker))
 	if info.Mode == game.ModeMatch {
-		fmt.Fprintf(&b, " Score: %s\n", scoreLine(info.Maker, info.Breaker))
+		fmt.Fprintf(&b, " Score: %s\n", r.scoreLine(info.Maker, info.Breaker))
 	}
 
-	b.WriteString(border("┌", "┬", "┐"))
-	// Go note: in a format string, %-*s pads a string on the right to a
-	// width given as an argument, here colGuess-1. fmt counts width in
-	// runes (characters), not bytes, so the ● and △ symbols, which take 3
-	// bytes each in UTF-8, still line up.
-	fmt.Fprintf(&b, "│ Row │ %-*s│ %-*s│\n", colGuess-1, "Guess", colResult-1, "Result")
-	b.WriteString(border("├", "┼", "┤"))
+	b.WriteString(r.border(r.sym.tl, r.sym.tm, r.sym.tr))
+	r.row(&b, " Row ", "Guess", "Result")
+	b.WriteString(r.border(r.sym.ml, r.sym.mm, r.sym.mr))
 	for _, t := range turns {
-		fmt.Fprintf(&b, "│ %3d │ %-*s│ %-*s│\n",
-			t.Row, colGuess-1, r.Code(t.Guess), colResult-1, r.Feedback(t.Feedback))
+		r.row(&b, fmt.Sprintf(" %3d ", t.Row), r.Code(t.Guess), r.Feedback(t.Feedback))
 	}
-	b.WriteString(border("└", "┴", "┘"))
+	b.WriteString(r.border(r.sym.bl, r.sym.bm, r.sym.br))
 
-	fmt.Fprintf(&b, " %s right color, right spot  %s right color, wrong spot\n", symExact, symPartial)
-	b.WriteString(" " + colorKey() + "\n")
+	fmt.Fprintf(&b, " %s right color, right spot  %s right color, wrong spot\n",
+		r.paint(sgrBold, r.sym.exact), r.paint(sgrYellow, r.sym.partial))
+	b.WriteString(" " + r.colorKey() + "\n")
 
 	r.write(b.String())
 }
 
+// row writes one line of the board: the row cell as given, and the guess
+// and result cells padded to their columns' widths.
+func (r *Renderer) row(b *strings.Builder, rowCell, guess, result string) {
+	v := r.sym.v
+	b.WriteString(v + rowCell + v + " " + padRight(guess, colGuess-1) +
+		v + " " + padRight(result, colResult-1) + v + "\n")
+}
+
 // RoundStarted implements game.Observer. It forgets the previous round's
 // turns and draws an empty board.
+//
+// It doesn't clear the screen, even in a terminal, so the previous round's
+// summary stays readable until the player answers the next prompt.
 func (r *Renderer) RoundStarted(info game.RoundInfo) {
 	r.mode = info.Mode
 	r.info = info
@@ -134,10 +150,14 @@ func (r *Renderer) RoundStarted(info game.RoundInfo) {
 	r.Board(info, nil)
 }
 
-// TurnPlayed implements game.Observer. It records the turn and redraws the
-// board with every row so far.
+// TurnPlayed implements game.Observer. It records the turn and draws the
+// board with every row so far. In a terminal it first clears the screen,
+// so the board stays in one place rather than scrolling.
 func (r *Renderer) TurnPlayed(info game.RoundInfo, turn game.Turn) {
 	r.turns = append(r.turns, turn)
+	if r.tty {
+		r.write(ansiHome + ansiClearScreen)
+	}
 	r.Board(info, r.turns)
 }
 
@@ -162,16 +182,14 @@ func (r *Renderer) RoundEnded(res game.RoundResult, seats [2]game.Seat) {
 	case !res.Solved:
 		b.WriteString(" No points this round.\n")
 	case r.mode == game.ModeSingle:
-		lo, hi := bracket(res.Rows)
-		fmt.Fprintf(&b, " In a match that would score %d points (solved in rows %d–%d).\n",
-			res.Points, lo, hi)
+		fmt.Fprintf(&b, " In a match that would score %d points (solved in rows %s).\n",
+			res.Points, r.Range(bracket(res.Rows)))
 	default:
-		lo, hi := bracket(res.Rows)
-		fmt.Fprintf(&b, " %s scores %d points (solved in rows %d–%d).\n",
-			breaker, res.Points, lo, hi)
+		fmt.Fprintf(&b, " %s scores %d points (solved in rows %s).\n",
+			breaker, res.Points, r.Range(bracket(res.Rows)))
 	}
 	if r.mode == game.ModeMatch {
-		fmt.Fprintf(&b, " Score: %s\n", scoreLine(seats[0], seats[1]))
+		fmt.Fprintf(&b, " Score: %s\n", r.scoreLine(seats[0], seats[1]))
 	}
 
 	r.write(b.String())
@@ -193,10 +211,10 @@ func (r *Renderer) MatchEnded(st game.Standings) {
 		winner := st.Seats[st.Winner]
 		fmt.Fprintf(&b, " %s wins the match with %d points after %d %s!\n",
 			winner.Name, winner.Score, rounds, plural(rounds, "round"))
-		fmt.Fprintf(&b, " Final score: %s\n", scoreLine(st.Seats[0], st.Seats[1]))
+		fmt.Fprintf(&b, " Final score: %s\n", r.scoreLine(st.Seats[0], st.Seats[1]))
 	default:
 		fmt.Fprintf(&b, " Match stopped after %d %s.\n", rounds, plural(rounds, "round"))
-		fmt.Fprintf(&b, " Score: %s\n", scoreLine(st.Seats[0], st.Seats[1]))
+		fmt.Fprintf(&b, " Score: %s\n", r.scoreLine(st.Seats[0], st.Seats[1]))
 	}
 
 	r.write(b.String())
@@ -207,6 +225,9 @@ func (r *Renderer) MatchEnded(st game.Standings) {
 //
 // It works the range out from game.Points instead of repeating the scoring
 // table, so the screen can never disagree with the rules.
+//
+// Go note: a call that returns two values can be passed straight to a
+// function that takes those two values, as in r.Range(bracket(rows)).
 func bracket(rows int) (lo, hi int) {
 	p := game.Points(rows, true)
 	lo, hi = rows, rows
@@ -231,30 +252,32 @@ func modeTitle(m game.Mode) string {
 	return "Match"
 }
 
-// seatLabel names a player with their scoring color: "Blue Tom".
-func seatLabel(s game.Seat) string {
-	return fmt.Sprintf("%v %s", s.Peg, s.Name)
+// seatLabel names a player with their scoring color: "Blue Tom", with the
+// color word in that color when color is on.
+func (r *Renderer) seatLabel(s game.Seat) string {
+	return r.paint(scoringPegColor(s.Peg), s.Peg.String()) + " " + s.Name
 }
 
 // scoreLine shows two players' scores on the 30-point track:
 // "Blue Tom 18/30 · Red Computer 10/30". Blue is always listed first, so
 // the scores stay in the same place on every screen, whoever is Maker.
-func scoreLine(a, b game.Seat) string {
+func (r *Renderer) scoreLine(a, b game.Seat) string {
 	if a.Peg > b.Peg {
 		// Go note: Go can swap two variables in one assignment. Both
 		// right-hand values are read before either variable is set.
 		a, b = b, a
 	}
-	return fmt.Sprintf("%s %d/%d · %s %d/%d",
-		seatLabel(a), a.Score, game.TargetScore, seatLabel(b), b.Score, game.TargetScore)
+	return fmt.Sprintf("%s %d/%d %s %s %d/%d",
+		r.seatLabel(a), a.Score, game.TargetScore, r.sym.dot, r.seatLabel(b), b.Score, game.TargetScore)
 }
 
 // border draws one horizontal line of the board using the given corner and
 // junction characters.
-func border(left, mid, right string) string {
-	return left + strings.Repeat("─", colRow) + mid +
-		strings.Repeat("─", colGuess) + mid +
-		strings.Repeat("─", colResult) + right + "\n"
+func (r *Renderer) border(left, mid, right string) string {
+	h := r.sym.hr
+	return left + strings.Repeat(h, colRow) + mid +
+		strings.Repeat(h, colGuess) + mid +
+		strings.Repeat(h, colResult) + right + "\n"
 }
 
 // plural returns word, with an "s" added unless n is 1.
@@ -265,12 +288,13 @@ func plural(n int, word string) string {
 	return word + "s"
 }
 
-// colorKey lists every color with its letter: "K=Black W=White ...". It's
-// built from code.AllColors, so it always matches the real palette.
-func colorKey() string {
+// colorKey lists every color with its letter: "K=Black W=White ...", each
+// letter in its own color when color is on. It's built from
+// code.AllColors, so it always matches the real palette.
+func (r *Renderer) colorKey() string {
 	parts := make([]string, 0, code.NumColors)
 	for _, c := range code.AllColors() {
-		parts = append(parts, fmt.Sprintf("%c=%s", c.Abbrev(), c.Name()))
+		parts = append(parts, r.paint(pegColors[c], string(c.Abbrev()))+"="+c.Name())
 	}
 	return strings.Join(parts, " ")
 }

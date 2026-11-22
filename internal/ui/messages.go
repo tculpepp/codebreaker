@@ -101,8 +101,9 @@ func FriendlyMessage(err error) string {
 	}
 }
 
-// Error shows err as a friendly message, marked with "!" so it stands out
-// just above the prompt that's asked again. The board isn't redrawn.
+// Error shows err as a friendly message, marked with "!" (and in red when
+// color is on) so it stands out just above the prompt that's asked again.
+// The board isn't redrawn.
 func (r *Renderer) Error(err error) {
-	r.write(" ! " + FriendlyMessage(err) + "\n")
+	r.write(" " + r.paint(sgrRed, "! "+FriendlyMessage(err)) + "\n")
 }

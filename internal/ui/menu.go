@@ -24,14 +24,14 @@ func (r *Renderer) Help() {
 	var b strings.Builder
 	b.WriteString("\n How to play\n")
 	fmt.Fprintf(&b, "   The secret is %d different colors, chosen from:\n", code.Length)
-	fmt.Fprintf(&b, "     %s\n", colorKey())
+	fmt.Fprintf(&b, "     %s\n", r.colorKey())
 	fmt.Fprintf(&b, "   Type a guess as %d letters: RGYBK, r g y b k or R,G,Y,B,K.\n", code.Length)
 	b.WriteString("   After each guess:\n")
-	fmt.Fprintf(&b, "     %s a right color in the right spot\n", symExact)
-	fmt.Fprintf(&b, "     %s a right color in the wrong spot\n", symPartial)
+	fmt.Fprintf(&b, "     %s a right color in the right spot\n", r.paint(sgrBold, r.sym.exact))
+	fmt.Fprintf(&b, "     %s a right color in the wrong spot\n", r.paint(sgrYellow, r.sym.partial))
 	b.WriteString("     The symbols don't say which pegs they mean.\n")
 	fmt.Fprintf(&b, "   You have %d rows. Solve sooner to score more:\n", game.MaxRows)
-	fmt.Fprintf(&b, "     rows %s\n", scoringTable())
+	fmt.Fprintf(&b, "     rows %s\n", r.scoringTable())
 	fmt.Fprintf(&b, "   The first player to reach %d points wins a match.\n", game.TargetScore)
 	b.WriteString("   Type q to quit.\n")
 	r.write(b.String())
@@ -53,7 +53,7 @@ func (r *Renderer) Menu(title string, choices []string) {
 // says the coin decided, as the box rules have it (D6).
 func (r *Renderer) Setup(mode game.Mode, seats [2]game.Seat, makerIdx int, coinFlip bool) {
 	var b strings.Builder
-	players := seatLabel(seats[0]) + " vs " + seatLabel(seats[1])
+	players := r.seatLabel(seats[0]) + " vs " + r.seatLabel(seats[1])
 	if mode == game.ModeMatch {
 		fmt.Fprintf(&b, "\n Match: %s. First to %d points wins.\n", players, game.TargetScore)
 	} else {
@@ -81,15 +81,15 @@ func (r *Renderer) Goodbye() {
 // scoringTable lists every scoring bracket and its points:
 // "1–4: 12 · 5–6: 10 · ...". It's built from bracket, and so from
 // game.Points.
-func scoringTable() string {
+func (r *Renderer) scoringTable() string {
 	var parts []string
 	// Go note: Go's only loop keyword is for. This form, with no
 	// condition-update in the header, leaves the update to the body, which
 	// jumps to the row after each bracket.
 	for row := 1; row <= game.MaxRows; {
 		lo, hi := bracket(row)
-		parts = append(parts, fmt.Sprintf("%d–%d: %d", lo, hi, game.Points(lo, true)))
+		parts = append(parts, fmt.Sprintf("%s: %d", r.Range(lo, hi), game.Points(lo, true)))
 		row = hi + 1
 	}
-	return strings.Join(parts, " · ")
+	return strings.Join(parts, " "+r.sym.dot+" ")
 }

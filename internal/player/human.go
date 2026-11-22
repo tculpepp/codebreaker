@@ -11,11 +11,12 @@ import (
 )
 
 // Screen is what a Human needs from the display: a way to report a
-// mistake, show the help text, hand the keyboard to the other player, and
-// draw the board again afterwards. *ui.Renderer satisfies it.
+// mistake, show the help text, hand the keyboard to the other player, draw
+// the board again afterwards, and format prompts in the screen's style
+// (Unicode or ASCII). *ui.Renderer satisfies it.
 //
 // Go note: Human could take a *ui.Renderer directly. Asking for this small
-// interface instead says exactly what Human uses (four methods, not the
+// interface instead says exactly what Human uses (five methods, not the
 // whole renderer), and lets tests pass a fake that records the calls.
 // This is the "accept interfaces" half of the Go saying "accept
 // interfaces, return structs".
@@ -24,6 +25,7 @@ type Screen interface {
 	Help()
 	Handoff(next string)
 	Redraw()
+	Prompt(text string) string
 }
 
 // ErrSecretMismatch is reported (to the Screen, not returned) when the two
@@ -83,7 +85,7 @@ func NewHuman(in input.Prompter, screen Screen) *Human {
 // It returns input.ErrQuit, io.EOF or a context error unchanged when the
 // player quits, the input ends, or Ctrl-C is pressed.
 func (h *Human) Guess(ctx context.Context, info game.RoundInfo, history []game.Turn) (code.Code, error) {
-	prompt := fmt.Sprintf(" Row %d/%d (? help, q quit) ▸ ", len(history)+1, info.MaxRows)
+	prompt := h.screen.Prompt(fmt.Sprintf("Row %d/%d (? help, q quit)", len(history)+1, info.MaxRows))
 
 	// Go note: this is a "function literal" (an anonymous function). It
 	// uses history from the surrounding function; a function that captures
@@ -103,7 +105,7 @@ func (h *Human) Guess(ctx context.Context, info game.RoundInfo, history []game.T
 func (h *Human) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code, error) {
 	maker, breaker := info.Maker.Name, info.Breaker.Name
 	if !h.Hidden {
-		prompt := fmt.Sprintf(" %s, choose a secret code for %s ▸ ", maker, breaker)
+		prompt := h.screen.Prompt(fmt.Sprintf("%s, choose a secret code for %s", maker, breaker))
 		return h.ask(ctx, prompt, h.in.Line, nil)
 	}
 
@@ -111,14 +113,14 @@ func (h *Human) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code,
 	// Secret method bound to h.in, ready to be called later. Passing it to
 	// ask (and h.in.Line elsewhere) lets one loop serve both kinds of
 	// prompt.
-	first := fmt.Sprintf(" %s, type a secret code for %s (hidden) ▸ ", maker, breaker)
+	first := h.screen.Prompt(fmt.Sprintf("%s, type a secret code for %s (hidden)", maker, breaker))
 	var secret code.Code
 	for {
 		c, err := h.ask(ctx, first, h.in.Secret, nil)
 		if err != nil {
 			return code.Code{}, err
 		}
-		again, err := h.ask(ctx, " Type it again to check ▸ ", h.in.Secret, nil)
+		again, err := h.ask(ctx, h.screen.Prompt("Type it again to check"), h.in.Secret, nil)
 		if err != nil {
 			return code.Code{}, err
 		}
@@ -130,7 +132,7 @@ func (h *Human) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code,
 	}
 
 	h.screen.Handoff(breaker)
-	if err := h.waitForEnter(ctx, " "+breaker+", press Enter when you're ready ▸ "); err != nil {
+	if err := h.waitForEnter(ctx, h.screen.Prompt(breaker+", press Enter when you're ready")); err != nil {
 		return code.Code{}, err
 	}
 	h.screen.Redraw()

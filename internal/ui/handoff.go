@@ -34,7 +34,7 @@ func (r *Renderer) Clear() {
 		r.write(ansiHome + ansiClearScreen + ansiClearScrollback)
 		return
 	}
-	r.write("\n" + strings.Repeat("─", 40) + "\n")
+	r.write("\n" + strings.Repeat(r.sym.hr, 40) + "\n")
 }
 
 // Handoff clears the screen and asks for the keyboard to be passed to

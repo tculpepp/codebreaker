@@ -351,11 +351,11 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 | ✅ v0.3.0 | `input`, plain UI, Human player, Computer as Maker. **First playable version: Single game, a human breaks the computer's code.** |
 | ✅ v0.4.0 | Solver, Computer as Breaker, **full Match mode against the computer** |
 | ✅ v0.5.0 | Human vs Human: hidden input and handoff |
-| v1.0.0 | Colors, Windows support, `-ascii`, flags, help, README (including the "learning Go" guide and concept map), CI on 3 OSes |
+| ✅ v1.0.0 | Colors, Windows support, `-ascii`, flags, help, README (including the "learning Go" guide and concept map), CI on 3 OSes |
 
 ## 10. Status and next step
 
-**Done:** v0.1.0 (`code`), v0.2.0 (`game`), v0.3.0 (`input`, `ui`, `player`, `app`, `cmd/codebreaker`), v0.4.0 (`solver`, the computer as Code Breaker, the menu, full matches) and v0.5.0 (Human vs Human) are tagged. Every `internal` package has 100% test coverage except `input` (89.7%), and all are clean under vet and staticcheck. The untested part of `input` is the real-terminal code in `hidden.go`, which can't run without a terminal; it was checked by hand in a pseudo-terminal (see below). `cmd/codebreaker` has no tests: `main` only wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit or end of input, and 130 for Ctrl-C.
+**Done:** every milestone, v0.1.0 to v1.0.0, is tagged. Every `internal` package has 100% test coverage except `input` (89.7%), and all are clean under vet and staticcheck. The untested part of `input` is the real-terminal code in `hidden.go`, which can't run without a terminal; it was checked by hand in a pseudo-terminal. `cmd/codebreaker` has no tests: `main` only reads the flags, wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit, end of input and `-h`, 2 for bad flags, and 130 for Ctrl-C.
 
 **How `game` differs from the sketches above:**
 - `Config.FirstMaker` is an enum type, and its zero value means a coin flip.
@@ -385,8 +385,15 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 - `app`: name → main menu (Match, Single, Quit) → opponent (computer or person) → second name (it must differ from the first, ignoring case; Enter gives "Player 2") → role (Single only, with both names) → play. The first player is always Blue and the second Red.
 - Checked by hand in a pseudo-terminal (`script`): in a Human vs Human game, the secret first appears on screen when the Breaker types it as a guess; the clear-screen codes are sent; and Ctrl-C during hidden typing exits with 130 and leaves the terminal echo on.
 
-**Next: v1.0.0, polish and release.** Build these test-first:
-1. `ui`: an `Options` type (`NoColor`, `ASCII`, `ForceTTY`) for `NewRenderer`. Colored pegs using the ANSI palette in §3, a bold ● and a yellow △. Color is turned off for `-no-color`, `NO_COLOR`, `TERM=dumb`, or output that isn't a terminal. A test checks that removing the ANSI codes from the colored output gives exactly the plain output. In a terminal, the board is redrawn in place each turn, which fixes the computer's rows scrolling past.
-2. `-ascii`: swap the symbols for `* ^ + - |`. Add `vt_windows.go` and `vt_other.go` with build tags, to turn on ANSI support on Windows.
-3. Flags in `main` and `app.Options`: `-mode`, `-opponent`, `-role`, `-seed`, `-no-color`, `-ascii`. Flags skip the matching menu screens. Bad flags print usage and exit with 2.
-4. README: how to play, the flags, and the "learning Go" guide with the concept map. CI on Linux, macOS and Windows.
+**How v1.0.0 differs from the sketches above:**
+- `ui.Options` has `NoColor`, `ASCII` and `ForceTTY`, as planned. Every character the screens use comes from one symbol set, Unicode or ASCII. That includes the prompt arrow and range dash, which `player` and `app` get through `Renderer.Prompt` and `Renderer.Range`, so the ASCII mode really is ASCII-only (a test checks every byte of a whole session).
+- Colors follow the palette in §3, and the scoring-peg names and errors are colored too. Cells are padded by visible width (escape codes removed) so colored boards still line up; a test checks that the colored output, with its codes removed, is exactly the plain output.
+- In a terminal, each turn redraws the board in place. A new round doesn't clear the screen, so the last round's summary stays readable until the next prompt is answered.
+- Windows: `vt_windows.go` turns on escape-code support with `golang.org/x/sys/windows`; if that fails, output is plain. It's checked with `GOOS=windows go vet` and a cross-compile, and will be tested on Windows by CI.
+- Flags: `app.ParseFlags` (testable, unlike `main`) and `app.Options`. `-role` implies `-mode single`, and `-role` with `-mode match` is a usage error. Without `-seed`, a random seed is chosen. A flag skips its menu question every time, including after "New game". `-h` exits 0 and bad flags exit 2.
+- CI: tests on Linux, macOS and Windows with Go 1.24.x and stable (race detector everywhere except Windows), plus gofmt and staticcheck 2026.2.2. `.gitattributes` keeps golden files LF on Windows. The workflow is written but hasn't run yet: it needs a push to GitHub.
+
+**Possible next steps** (out of scope for v1.0.0):
+- Publish the repository and watch the first CI run, especially the Windows job.
+- Give the module a full path (such as `github.com/<user>/codebreaker`) so it can be installed with `go install`.
+- A stronger computer Code Breaker (Knuth's minimax), or the box's advanced options (duplicate colors and blanks, D12).

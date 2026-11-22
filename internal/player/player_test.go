@@ -55,6 +55,9 @@ func (s *fakeScreen) Handoff(next string) { s.handoffs = append(s.handoffs, next
 // Redraw counts the call.
 func (s *fakeScreen) Redraw() { s.redraws++ }
 
+// Prompt formats a prompt the way the Unicode renderer does.
+func (s *fakeScreen) Prompt(text string) string { return " " + text + " ▸ " }
+
 // info is a round where Tom breaks the computer's code.
 var info = game.RoundInfo{
 	Number: 1, Mode: game.ModeSingle, MaxRows: game.MaxRows,

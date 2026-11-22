@@ -1,0 +1,11 @@
+
+ CODEBREAKER | Match | Round 3
+ Maker: Red Computer | Breaker: Blue Tom
+ Score: Blue Tom 0/30 | Red Computer 0/30
++-----+----------------+--------+
+| Row | Guess          | Result |
++-----+----------------+--------+
+|   1 | R G Y B K      | *^^..  |
++-----+----------------+--------+
+ * right color, right spot  ^ right color, wrong spot
+ K=Black W=White R=Red B=Blue G=Green Y=Yellow P=Pink O=Orange

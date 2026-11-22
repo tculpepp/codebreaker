@@ -3,9 +3,11 @@ package app
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"slices"
 	"strings"
 
 	"codebreaker/internal/game"
@@ -20,6 +22,8 @@ const (
 	ExitOK = 0
 	// ExitError means something went wrong that shouldn't happen.
 	ExitError = 1
+	// ExitUsage means the command line was wrong (bad flags).
+	ExitUsage = 2
 	// ExitInterrupted means the player pressed Ctrl-C.
 	//
 	// Go note: this isn't Go-specific. Unix shells report a program killed
@@ -53,23 +57,28 @@ func (e nameTakenError) Friendly() string {
 }
 
 // Run plays Codebreaker, reading the player's answers from in and drawing
-// on out, until the player quits. seed fixes every random choice (the
-// coin flip and the computer's codes and guesses), so the same seed and
-// the same answers always give the same game.
+// on out, until the player quits. o holds the command-line choices (see
+// ParseFlags). o.Seed fixes every random choice (the coin flip and the
+// computer's codes and guesses), so the same seed and the same answers
+// always give the same game.
 //
 // It returns nil when the player quits or the input ends, the context
 // error after Ctrl-C (ctx cancelled), or any other failure. Pass the
 // result to ExitCode.
-func Run(ctx context.Context, in io.Reader, out io.Writer, seed uint64) error {
-	return run(ctx, input.NewTerminal(in, out), ui.NewRenderer(out), newRNG(seed))
+func Run(ctx context.Context, in io.Reader, out io.Writer, o Options) error {
+	r := ui.NewRenderer(out, ui.Options{NoColor: o.NoColor, ASCII: o.ASCII})
+	return run(ctx, input.NewTerminal(in, out), r, newRNG(o.Seed), o)
 }
 
-// ExitCode turns Run's result into a process exit code: ExitOK for nil,
+// ExitCode turns an error from ParseFlags or Run into a process exit code:
+// ExitOK for nil or a request for help, ExitUsage for bad flags,
 // ExitInterrupted after Ctrl-C, and ExitError for anything else.
 func ExitCode(err error) int {
 	switch {
-	case err == nil:
+	case err == nil, errors.Is(err, flag.ErrHelp):
 		return ExitOK
+	case errors.Is(err, ErrUsage):
+		return ExitUsage
 	case errors.Is(err, context.Canceled):
 		return ExitInterrupted
 	default:
@@ -96,8 +105,8 @@ func newRNG(seed uint64) *rand.Rand {
 // Go note: run is unexported (lowercase), so only this package and its
 // tests can call it. The exported Run stays simple for main, while tests
 // get full control. Splitting it this way is a common Go pattern.
-func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand) error {
-	s := &session{p: p, r: r, rng: rng}
+func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand, o Options) error {
+	s := &session{p: p, r: r, rng: rng, opts: o}
 	err := s.play(ctx)
 	if errors.Is(err, input.ErrQuit) || errors.Is(err, io.EOF) {
 		err = nil
@@ -147,6 +156,7 @@ type session struct {
 	name2   string      // the second person's name (seat 2, Red), in Human vs Human
 	vsHuman bool        // whether seat 2 is a person rather than the computer
 	cfg     game.Config // the game chosen in the menus
+	opts    Options     // command-line choices; each one set skips its menu
 }
 
 // play runs the state machine from the welcome screen until stateDone or
@@ -189,7 +199,7 @@ func (s *session) step(ctx context.Context, st state) (state, error) {
 
 // askName asks for the first player's name.
 func (s *session) askName(ctx context.Context) (state, error) {
-	name, err := s.readName(ctx, " Your name (Enter for "+defaultName+") ▸ ", defaultName, "")
+	name, err := s.readName(ctx, s.r.Prompt("Your name (Enter for "+defaultName+")"), defaultName, "")
 	if err != nil {
 		return stateDone, err
 	}
@@ -200,7 +210,7 @@ func (s *session) askName(ctx context.Context) (state, error) {
 // askSecondName asks for the second person's name, which must differ from
 // the first player's.
 func (s *session) askSecondName(ctx context.Context) (state, error) {
-	prompt := " Second player's name (Enter for " + defaultName2 + ") ▸ "
+	prompt := s.r.Prompt("Second player's name (Enter for " + defaultName2 + ")")
 	name, err := s.readName(ctx, prompt, defaultName2, s.name)
 	if err != nil {
 		return stateDone, err
@@ -237,9 +247,10 @@ func (s *session) readName(ctx context.Context, prompt, def, taken string) (stri
 	}
 }
 
-// mainMenu offers a match, a Single game, or quitting.
+// mainMenu offers a match, a Single game, or quitting. The -mode flag
+// answers it without asking.
 func (s *session) mainMenu(ctx context.Context) (state, error) {
-	choice, err := s.choose(ctx, "Main menu", []string{
+	choice, err := s.chooseUnless(ctx, s.opts.Mode, modes, "Main menu", []string{
 		fmt.Sprintf("Match (first to %d points)", game.TargetScore),
 		"Single game (one round)",
 		"Quit",
@@ -260,9 +271,11 @@ func (s *session) mainMenu(ctx context.Context) (state, error) {
 }
 
 // chooseOpponent asks whether to play the computer or another person at
-// the same keyboard. Computer vs Computer isn't offered (D17).
+// the same keyboard. Computer vs Computer isn't offered (D17). The
+// -opponent flag answers it without asking.
 func (s *session) chooseOpponent(ctx context.Context) (state, error) {
-	choice, err := s.choose(ctx, "Play against:", []string{"The computer", "Another person"})
+	choice, err := s.chooseUnless(ctx, s.opts.Opponent, opponents,
+		"Play against:", []string{"The computer", "Another person"})
 	switch {
 	case err != nil:
 		return stateDone, err
@@ -278,7 +291,8 @@ func (s *session) chooseOpponent(ctx context.Context) (state, error) {
 }
 
 // chooseRole asks who makes the code in a Single game (D13). The first
-// player always sits in seat 0 and the opponent in seat 1.
+// player always sits in seat 0 and the opponent in seat 1. The -role flag
+// answers it without asking.
 func (s *session) chooseRole(ctx context.Context) (state, error) {
 	choices := []string{
 		"Break the computer's code",
@@ -289,7 +303,7 @@ func (s *session) chooseRole(ctx context.Context) (state, error) {
 		choices[0] = s.name + " breaks " + s.name2 + "'s code"
 		choices[1] = s.name2 + " breaks " + s.name + "'s code"
 	}
-	choice, err := s.choose(ctx, "Single game: who makes the code?", choices)
+	choice, err := s.chooseUnless(ctx, s.opts.Role, roles, "Single game: who makes the code?", choices)
 	if err != nil {
 		return stateDone, err
 	}
@@ -341,7 +355,7 @@ func (s *session) startAndPlay(ctx context.Context, m *game.Match) error {
 	coinFlip := s.cfg.FirstMaker == game.FirstMakerCoinFlip
 	s.r.Setup(s.cfg.Mode, m.Seats(), m.MakerIdx(), coinFlip)
 	for {
-		_, err := s.p.Line(ctx, " Press Enter to start ▸ ")
+		_, err := s.p.Line(ctx, s.r.Prompt("Press Enter to start"))
 		if errors.Is(err, input.ErrHelp) {
 			s.r.Help()
 			continue
@@ -368,12 +382,26 @@ func (s *session) playAgain(ctx context.Context) (state, error) {
 	}
 }
 
+// chooseUnless returns the menu choice that answer (a command-line flag's
+// value) stands for: its index in values, which lists the flag values in
+// the same order as choices. If answer is "", it asks with choose instead.
+func (s *session) chooseUnless(ctx context.Context, answer string, values []string,
+	title string, choices []string) (int, error) {
+	// Go note: slices.Index returns the position of a value in a slice, or
+	// -1 if it isn't there. ParseFlags has already checked the value, so
+	// it's always found.
+	if answer != "" {
+		return slices.Index(values, answer), nil
+	}
+	return s.choose(ctx, title, choices)
+}
+
 // choose shows a menu and returns the 0-based index of the choice made. A
 // bad answer is explained and asked again; help is shown followed by the
 // menu again, so the choices stay in view.
 func (s *session) choose(ctx context.Context, title string, choices []string) (int, error) {
 	s.r.Menu(title, choices)
-	prompt := fmt.Sprintf(" Choose 1–%d ▸ ", len(choices))
+	prompt := s.r.Prompt("Choose " + s.r.Range(1, len(choices)))
 	for {
 		line, err := s.p.Line(ctx, prompt)
 		if errors.Is(err, input.ErrHelp) {

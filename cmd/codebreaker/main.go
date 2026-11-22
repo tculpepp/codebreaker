@@ -1,16 +1,23 @@
 // Command codebreaker is a terminal version of the Code Breaker board
 // game. Run it and follow the prompts; type ? for help or q to quit.
 //
-// main is kept tiny on purpose: it sets up Ctrl-C handling, runs the game,
-// and exits with the right code. All the logic lives in package app, where
-// it can be tested.
+// Usage:
+//
+//	codebreaker [-mode match|single] [-opponent computer|human]
+//	            [-role breaker|maker|random] [-seed N] [-no-color] [-ascii]
+//
+// Each flag answers a menu question, which is then skipped. Run
+// `codebreaker -h` for the full list.
+//
+// main is kept tiny on purpose: it reads the flags, sets up Ctrl-C
+// handling, runs the game, and exits with the right code. All the logic
+// lives in package app, where it can be tested.
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"os/signal"
 
@@ -19,6 +26,13 @@ import (
 
 // main runs the game on the terminal and exits with app.ExitCode.
 func main() {
+	// Bad flags print their own message and the usage text, then exit 2;
+	// -h prints the usage and exits 0.
+	opts, err := app.ParseFlags(os.Args[1:], os.Stderr)
+	if err != nil {
+		os.Exit(app.ExitCode(err))
+	}
+
 	// Go note: signal.NotifyContext returns a context that is cancelled
 	// when the program receives Ctrl-C (os.Interrupt). Every prompt
 	// watches this context, so Ctrl-C stops the game cleanly wherever it
@@ -26,10 +40,7 @@ func main() {
 	// Ctrl-C would kill the program at once.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 
-	// Go note: rand.Uint64 (the top-level function) uses a generator that
-	// Go seeds randomly at start-up, so each run gets a new seed. The
-	// game itself only uses the seeded generator built from it.
-	err := app.Run(ctx, os.Stdin, os.Stdout, rand.Uint64())
+	err = app.Run(ctx, os.Stdin, os.Stdout, opts)
 	stop()
 
 	if err != nil && !errors.Is(err, context.Canceled) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,8 +79,15 @@ func wrongGuess(secret code.Code) string {
 // wrote, transcript style (prompts followed by the "typed" answers).
 func script(t *testing.T, ctx context.Context, seed uint64, lines ...string) (string, error) {
 	t.Helper()
+	return scriptWith(t, ctx, seed, Options{}, ui.Options{}, lines...)
+}
+
+// scriptWith is script with app options (as if given as flags) and screen
+// options.
+func scriptWith(t *testing.T, ctx context.Context, seed uint64, o Options, uo ui.Options, lines ...string) (string, error) {
+	t.Helper()
 	var out strings.Builder
-	err := run(ctx, input.NewScripted(&out, lines...), ui.NewRenderer(&out), newRNG(seed))
+	err := run(ctx, input.NewScripted(&out, lines...), ui.NewRenderer(&out, uo), newRNG(seed), o)
 	return out.String(), err
 }
 
@@ -405,7 +413,7 @@ func TestCtrlC(t *testing.T) {
 	lines := input.NewScripted(&out, "Tom", menuSingle, vsComputer, roleBreak, start, "RGYBK")
 	p := &cancelOnCall{Prompter: lines, n: 6, cancel: cancel}
 
-	err := run(ctx, p, ui.NewRenderer(&out), newRNG(1))
+	err := run(ctx, p, ui.NewRenderer(&out, ui.Options{}), newRNG(1), Options{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("run error = %v, want context.Canceled", err)
 	}
@@ -426,7 +434,7 @@ func TestCtrlC(t *testing.T) {
 func TestRunReadError(t *testing.T) {
 	errBoom := errors.New("boom")
 	var out strings.Builder
-	err := Run(context.Background(), iotest.ErrReader(errBoom), &out, 1)
+	err := Run(context.Background(), iotest.ErrReader(errBoom), &out, Options{Seed: 1, NoColor: true})
 	if !errors.Is(err, errBoom) {
 		t.Fatalf("Run error = %v, want one wrapping %v", err, errBoom)
 	}
@@ -449,11 +457,164 @@ func TestExitCode(t *testing.T) {
 		{name: "finished", err: nil, want: ExitOK},
 		{name: "ctrl-c", err: context.Canceled, want: ExitInterrupted},
 		{name: "wrapped ctrl-c", err: fmt.Errorf("round 1: %w", context.Canceled), want: ExitInterrupted},
+		{name: "bad flags", err: fmt.Errorf("%w: -mode", ErrUsage), want: ExitUsage},
+		{name: "-h asked for help", err: flag.ErrHelp, want: ExitOK},
 		{name: "anything else", err: errors.New("bug"), want: ExitError},
 	}
 	for _, tt := range tests {
 		if got := ExitCode(tt.err); got != tt.want {
 			t.Errorf("%s: ExitCode = %d, want %d", tt.name, got, tt.want)
 		}
+	}
+}
+
+// TestFlagsSkipMenus checks that each flag answers its menu question, so
+// that screen is skipped. With every choice given, the game goes straight
+// from the name to the line-up, and "New game" replays the same setup.
+func TestFlagsSkipMenus(t *testing.T) {
+	s := firstSecret(1)
+	o := Options{Mode: "single", Opponent: "computer", Role: "breaker"}
+	out, err := scriptWith(t, context.Background(), 1, o, ui.Options{},
+		"Tom", start, s.String(), againNew, start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, menu := range []string{"Main menu", "Play against:", "who makes the code?"} {
+		if strings.Contains(out, menu) {
+			t.Errorf("menu %q shown although its flag was given", menu)
+		}
+	}
+	if got := strings.Count(out, "Single game: Blue Tom vs Red Computer."); got != 2 {
+		t.Errorf("line-up shown %d times, want 2 (the replay uses the same flags)", got)
+	}
+}
+
+// TestSomeFlags checks that flags skip only their own questions: with
+// just -mode match, the opponent is still asked; with -opponent human and
+// -role random, the mode and second name are still asked, and the coin
+// decides the roles.
+func TestSomeFlags(t *testing.T) {
+	out, err := scriptWith(t, context.Background(), 1, Options{Mode: "match"}, ui.Options{},
+		"Tom", vsComputer, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "Main menu") || !strings.Contains(out, "Play against:") {
+		t.Errorf("-mode match: wrong menus shown:\n%s", out)
+	}
+
+	out, err = scriptWith(t, context.Background(), 1, Options{Opponent: "human", Role: "random"}, ui.Options{},
+		"Tom", menuSingle, "Ann", start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Main menu", "Second player's name", "Coin flip: "} {
+		if !strings.Contains(out, want) {
+			t.Errorf("-opponent human -role random: missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Play against:") || strings.Contains(out, "who makes the code?") {
+		t.Errorf("-opponent human -role random: a skipped menu was shown:\n%s", out)
+	}
+}
+
+// TestRoleFlags checks each -role value seats the first player correctly.
+func TestRoleFlags(t *testing.T) {
+	for role, want := range map[string]string{"breaker": "Computer makes the code.", "maker": "Tom makes the code."} {
+		o := Options{Mode: "single", Opponent: "computer", Role: role}
+		out, err := scriptWith(t, context.Background(), 1, o, ui.Options{}, "Tom", start, "q")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out, want) {
+			t.Errorf("-role %s: missing %q:\n%s", role, want, out)
+		}
+	}
+}
+
+// TestASCIISession plays a session that reaches nearly every screen, in
+// ASCII mode: menus, help, a mistake, the hidden-code handoff, a round
+// summary and the end. Not one byte of the output may be outside ASCII,
+// which proves every prompt follows the symbol set, including those built
+// in package player.
+func TestASCIISession(t *testing.T) {
+	out, err := scriptWith(t, context.Background(), 1, Options{}, ui.Options{ASCII: true},
+		"Tom", "?", menuSingle, vsHuman, "Ann", roleBreak, start,
+		"opygb", "opygb", "", "rrr", "opygb", againQuit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Tom cracked the code") {
+		t.Fatalf("session didn't finish as scripted:\n%s", out)
+	}
+	for i, b := range []byte(out) {
+		if b >= 0x80 {
+			start := max(0, i-40)
+			t.Fatalf("non-ASCII byte %#x at %d, after %q", b, i, out[start:i])
+		}
+	}
+}
+
+// TestParseFlags checks the command line: valid flags fill Options, -role
+// implies a Single game, -seed is kept, and every mistake is a usage error
+// that also prints the usage text.
+func TestParseFlags(t *testing.T) {
+	valid := []struct {
+		args []string
+		want Options
+	}{
+		{nil, Options{}},
+		{[]string{"-mode", "match", "-opponent", "human"}, Options{Mode: "match", Opponent: "human"}},
+		{[]string{"-mode=single", "-role=maker"}, Options{Mode: "single", Role: "maker"}},
+		{[]string{"-role", "random"}, Options{Mode: "single", Role: "random"}},
+		{[]string{"-no-color", "-ascii"}, Options{NoColor: true, ASCII: true}},
+	}
+	for _, tt := range valid {
+		got, err := ParseFlags(append(tt.args, "-seed", "7"), io.Discard)
+		tt.want.Seed = 7
+		if err != nil || got != tt.want {
+			t.Errorf("ParseFlags(%q) = %+v, %v; want %+v, nil", tt.args, got, err, tt.want)
+		}
+	}
+
+	invalid := [][]string{
+		{"-mode", "tournament"},
+		{"-opponent", "dog"},
+		{"-role", "judge"},
+		{"-mode", "match", "-role", "maker"},
+		{"-seed", "minus one"},
+		{"-colour"},
+		{"extra"},
+	}
+	for _, args := range invalid {
+		var stderr strings.Builder
+		_, err := ParseFlags(args, &stderr)
+		if !errors.Is(err, ErrUsage) {
+			t.Errorf("ParseFlags(%q) error = %v, want one wrapping ErrUsage", args, err)
+		}
+		if !strings.Contains(stderr.String(), "Usage: codebreaker") {
+			t.Errorf("ParseFlags(%q) didn't print the usage:\n%s", args, stderr.String())
+		}
+	}
+
+	var stderr strings.Builder
+	if _, err := ParseFlags([]string{"-h"}, &stderr); !errors.Is(err, flag.ErrHelp) {
+		t.Errorf("ParseFlags(-h) error = %v, want flag.ErrHelp", err)
+	}
+	for _, name := range []string{"-mode", "-opponent", "-role", "-seed", "-no-color", "-ascii"} {
+		if !strings.Contains(stderr.String(), name) {
+			t.Errorf("usage doesn't mention %s:\n%s", name, stderr.String())
+		}
+	}
+}
+
+// TestSeedIsRandomByDefault checks that without -seed each run gets a
+// different seed, so games differ. Two equal random 64-bit seeds in a row
+// would be a 1 in 2^64 coincidence.
+func TestSeedIsRandomByDefault(t *testing.T) {
+	a, _ := ParseFlags(nil, io.Discard)
+	b, _ := ParseFlags(nil, io.Discard)
+	if a.Seed == b.Seed {
+		t.Errorf("two runs without -seed both got seed %d", a.Seed)
 	}
 }

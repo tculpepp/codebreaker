@@ -13,12 +13,14 @@
 // menu, opponent, second name (Human vs Human), role choice for a Single
 // game, play, and play again. A match or a Single game can be played
 // against the computer or another person at the same keyboard.
-// Command-line flags arrive in v1.0.0.
+// Command-line flags (ParseFlags) answer menu questions in advance, so
+// their screens are skipped.
 //
 // # Go concepts shown here
 //
 //   - Keeping main small so the real logic is testable
 //   - A state machine: a named int type and one step method per state
+//   - flag.FlagSet for testable command-line parsing
 //   - An unexported run function that takes its dependencies as arguments
 //   - Process exit codes, including 130 for Ctrl-C
 //   - Embedding an interface in a struct to wrap it (in the tests)
