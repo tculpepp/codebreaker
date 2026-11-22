@@ -16,6 +16,9 @@ import (
 // checks every mistake itself, so a mistake never costs a row.
 type Tapper struct {
 	s *Session
+	// hidden is set when two people share the device. Each secret is then
+	// made between two handoff cards, so the Breaker never sees it (D21).
+	hidden bool
 }
 
 // Go note: a compile-time check that *Tapper can play both roles.
@@ -41,7 +44,16 @@ func (t *Tapper) Guess(ctx context.Context, info game.RoundInfo, history []game.
 
 // MakeSecret shows the secret screen and builds a code from the player's
 // taps until they Submit a valid one. Quit returns ErrQuit.
+//
+// When hidden, the device is first passed to the Maker, and afterwards to
+// the Breaker, each with an "I'm ready" card in between.
 func (t *Tapper) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code, error) {
+	if t.hidden {
+		line := fmt.Sprintf("%s makes the code. %s, no peeking!", info.Maker.Name, info.Breaker.Name)
+		if err := t.handoff(ctx, info.Maker.Name, line); err != nil {
+			return code.Code{}, err
+		}
+	}
 	c, err := t.build(ctx, func(code.Code) error { return nil },
 		func(d *Draft, msg string) View {
 			return View{
@@ -53,12 +65,42 @@ func (t *Tapper) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code
 				Input:   InputView{Palette: true, Undo: true, Submit: true},
 			}
 		})
-	if err == nil {
-		// Remembered so the board can show the player their own code
-		// while the computer tries to break it.
-		t.s.ownSecret = &c
+	if err != nil {
+		return code.Code{}, err
 	}
-	return c, err
+	// Remembered so the board can show the player their own code while
+	// the computer tries to break it. A person breaking it never sees
+	// it: Guess forgets it first.
+	t.s.ownSecret = &c
+	if t.hidden {
+		if err := t.handoff(ctx, info.Breaker.Name, info.Breaker.Name+" breaks the code."); err != nil {
+			return code.Code{}, err
+		}
+	}
+	return c, nil
+}
+
+// handoff shows the "Pass the device to <next>" card, with no board on
+// it, and waits for "I'm ready". Quit returns ErrQuit.
+func (t *Tapper) handoff(ctx context.Context, next, line string) error {
+	t.s.show(View{
+		Screen: ScreenHandoff,
+		Title:  "Pass the device to " + next,
+		Lines:  []string{line},
+		Input:  InputView{Ready: true},
+	})
+	for {
+		ev, err := t.s.next(ctx)
+		if err != nil {
+			return err
+		}
+		switch ev.Kind {
+		case KindReady:
+			return nil
+		case KindQuit:
+			return ErrQuit
+		}
+	}
 }
 
 // build runs the draft: it shows view after every event, with a message

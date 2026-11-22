@@ -58,10 +58,12 @@ func Delay(d time.Duration) Pacer {
 // it: only the goroutine holding the lock may touch queue. Everything else
 // in Session is used only by Run's goroutine and needs no lock.
 type Session struct {
-	rng  *rand.Rand
-	pace Pacer
-	out  func(View) // draws a View on the page
-	name string     // the player's name
+	rng     *rand.Rand
+	pace    Pacer
+	out     func(View) // draws a View on the page
+	name    string     // the first player's name (seat 0, Blue)
+	name2   string     // the second person's name (seat 1, Red), in Human vs Human
+	vsHuman bool       // seat 1 is a person rather than the computer
 
 	mu     sync.Mutex    // guards queue
 	queue  []Event       // events not yet read by Run, oldest first
@@ -131,9 +133,9 @@ func (s *Session) Run(ctx context.Context) error {
 	return err
 }
 
-// askName asks for the player's name, then goes to the main menu.
+// askName asks for the first player's name, then goes to the main menu.
 func (s *Session) askName(ctx context.Context) (step, error) {
-	s.show(View{
+	name, err := s.readName(ctx, View{
 		Screen: ScreenName,
 		Title:  "Codebreaker",
 		Lines: []string{
@@ -141,16 +143,48 @@ func (s *Session) askName(ctx context.Context) (step, error) {
 			"What's your name?",
 		},
 		Input: InputView{Text: true},
-	})
+	}, "Player", "")
+	s.name = name
+	return s.mainMenu, err
+}
+
+// askSecondName asks for the second person's name, which must differ
+// from the first, so the screens can tell them apart.
+func (s *Session) askSecondName(ctx context.Context) (step, error) {
+	name, err := s.readName(ctx, View{
+		Screen: ScreenName,
+		Title:  "Second player",
+		Lines:  []string{"What's the second player's name?"},
+		Input:  InputView{Text: true},
+	}, "Player 2", s.name)
+	s.name2 = name
+	if s.mode == game.ModeSingle {
+		return s.chooseRole, err
+	}
+	return s.play, err
+}
+
+// readName shows v and waits for a name: trimmed, cut to fit, def if
+// empty, and refused with a message if it matches taken (ignoring case).
+func (s *Session) readName(ctx context.Context, v View, def, taken string) (string, error) {
+	s.show(v)
 	for {
 		ev, err := s.next(ctx)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		if ev.Kind == KindText {
-			s.name = cleanName(ev.Text)
-			return s.mainMenu, nil
+		if ev.Kind != KindText {
+			continue
 		}
+		name := cleanName(ev.Text, def)
+		// Go note: strings.EqualFold compares two strings ignoring case,
+		// so "Tom" and "TOM" count as the same name.
+		if strings.EqualFold(name, taken) {
+			v.Message = taken + " is already taken. Please choose another name."
+			s.show(v)
+			continue
+		}
+		return name, nil
 	}
 }
 
@@ -177,22 +211,43 @@ func (s *Session) chooseLevel(ctx context.Context) (step, error) {
 		return nil, err
 	}
 	s.easy = choice == 1
-	if s.mode == game.ModeSingle {
-		return s.chooseRole, nil
+	return s.chooseOpponent, nil
+}
+
+// chooseOpponent asks whether to play the computer or another person at
+// the same device. Computer vs Computer isn't offered (D17).
+func (s *Session) chooseOpponent(ctx context.Context) (step, error) {
+	choice, err := s.menu(ctx, "Play against:", nil, "The computer", "Another person")
+	if err != nil {
+		return nil, err
 	}
-	return s.play, nil
+	s.vsHuman = choice == 1
+	switch {
+	case s.vsHuman:
+		return s.askSecondName, nil
+	case s.mode == game.ModeSingle:
+		return s.chooseRole, nil
+	default:
+		return s.play, nil
+	}
 }
 
 // chooseRole asks who makes the code in a Single game (D13).
 func (s *Session) chooseRole(ctx context.Context) (step, error) {
-	choice, err := s.menu(ctx, "Single game: who makes the code?", nil,
+	choices := []string{
 		"Break the computer's code",
 		"Make a code for the computer to break",
-		"Flip a coin")
+		"Flip a coin",
+	}
+	if s.vsHuman {
+		choices[0] = s.name + " breaks " + s.name2 + "'s code"
+		choices[1] = s.name2 + " breaks " + s.name + "'s code"
+	}
+	choice, err := s.menu(ctx, "Single game: who makes the code?", nil, choices...)
 	if err != nil {
 		return nil, err
 	}
-	// The player sits in seat 0 and the computer in seat 1.
+	// The first player sits in seat 0 and the opponent in seat 1.
 	s.first = []game.FirstMaker{game.FirstMakerSeat1, game.FirstMakerSeat0, game.FirstMakerCoinFlip}[choice]
 	return s.play, nil
 }
@@ -203,8 +258,13 @@ func (s *Session) chooseRole(ctx context.Context) (step, error) {
 func (s *Session) play(ctx context.Context) (step, error) {
 	s.board = NewBoard()
 	seats := [2]game.Seat{
-		{Name: s.name, Peg: game.PegBlue, Player: &Tapper{s: s}},
+		{Name: s.name, Peg: game.PegBlue, Player: &Tapper{s: s, hidden: s.vsHuman}},
 		{Name: computerName, Peg: game.PegRed, Player: &pacedComputer{s: s, c: player.NewComputer(s.rng)}},
+	}
+	if s.vsHuman {
+		// Both people share the device, so secrets are made behind
+		// handoff cards (D21).
+		seats[1] = game.Seat{Name: s.name2, Peg: game.PegRed, Player: &Tapper{s: s, hidden: true}}
 	}
 	cfg := game.Config{Mode: s.mode, FirstMaker: s.first, Easy: s.easy}
 	// NewMatch only fails on a bad setup, which the menus can't produce,
@@ -433,12 +493,12 @@ func (s *Session) pop(ctx context.Context, over <-chan struct{}) (Event, bool, e
 	}
 }
 
-// cleanName trims spaces, uses "Player" for an empty name, and cuts a long
-// one to maxName characters.
-func cleanName(s string) string {
+// cleanName trims spaces, uses def for an empty name, and cuts a long one
+// to maxName characters.
+func cleanName(s, def string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return "Player"
+		return def
 	}
 	if utf8.RuneCountInString(s) > maxName {
 		// Go note: converting a string to []rune splits it into

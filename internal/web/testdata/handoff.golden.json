@@ -1,0 +1,10 @@
+{
+  "screen": "handoff",
+  "title": "Pass the device to Ann",
+  "lines": [
+    "Ann makes the code. Tom, no peeking!"
+  ],
+  "input": {
+    "ready": true
+  }
+}

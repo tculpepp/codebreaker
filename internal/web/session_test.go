@@ -145,6 +145,8 @@ var (
 	menuSingle = choose(1)
 	levelNorm  = choose(0)
 	levelEasy  = choose(1)
+	vsComputer = choose(0)
+	vsHuman    = choose(1)
 	roleBreak  = choose(0)
 	roleMake   = choose(1)
 	roleFlip   = choose(2)
@@ -189,7 +191,7 @@ func (h *harness) menus(player string, answers ...Event) View {
 // Single game.
 func (h *harness) toBoard(player string) View {
 	h.t.Helper()
-	h.menus(player, menuSingle, levelNorm, roleBreak)
+	h.menus(player, menuSingle, levelNorm, vsComputer, roleBreak)
 	h.send(startGame)
 	return h.expect(ScreenBoard)
 }
@@ -209,6 +211,7 @@ func TestSessionMenus(t *testing.T) {
 	}{
 		{"Main menu", 2, menuSingle},
 		{"Difficulty", 2, levelNorm},
+		{"Play against:", 2, vsComputer},
 		{"Single game: who makes the code?", 3, roleBreak},
 		{"Single game", 1, startGame},
 	}
@@ -235,7 +238,7 @@ func TestSessionSingleBreaking(t *testing.T) {
 		t.Errorf("name screen = %+v, want a title and a text box", v)
 	}
 	h.send(name("  Tom  "))
-	for _, a := range []Event{menuSingle, levelNorm, roleBreak} {
+	for _, a := range []Event{menuSingle, levelNorm, vsComputer, roleBreak} {
 		h.expect(ScreenMenu)
 		h.send(a)
 	}
@@ -349,7 +352,7 @@ func TestSessionIgnoresStrayEvents(t *testing.T) {
 	h.expect(ScreenMenu)
 	h.send(name("Ann"), colorEv("R"), skip)
 	h.quiet()
-	h.send(menuSingle, levelNorm, roleBreak, startGame)
+	h.send(menuSingle, levelNorm, vsComputer, roleBreak, startGame)
 	h.until(ScreenBoard)
 	h.send(name("Ann"), choose(0), Event{Kind: KindReady}, skip)
 	h.quiet()
@@ -365,7 +368,7 @@ func TestSessionNames(t *testing.T) {
 		"Zoë":                            "Zoë",
 	} {
 		h := start(t, instant)
-		v := h.menus(typed, menuSingle, levelNorm, roleBreak)
+		v := h.menus(typed, menuSingle, levelNorm, vsComputer, roleBreak)
 		if v.Lines[0] != "Single game: Blue "+want+" vs Red Computer." {
 			t.Errorf("name %q: line-up %q, want the name %q", typed, v.Lines[0], want)
 		}
@@ -389,7 +392,7 @@ func TestSessionHelp(t *testing.T) {
 	h.send(closeEv) // not open: ignored
 	h.quiet()
 
-	h.send(name("Tom"), menuSingle, levelNorm, roleBreak, startGame)
+	h.send(name("Tom"), menuSingle, levelNorm, vsComputer, roleBreak, startGame)
 	h.until(ScreenBoard)
 	h.send(colorEv("G"))
 	h.expect(ScreenBoard)
@@ -445,7 +448,7 @@ func TestSessionOutOfRows(t *testing.T) {
 // offered; then the result.
 func TestSessionSingleMaking(t *testing.T) {
 	h := start(t, instant)
-	v := h.menus("Tom", menuSingle, levelNorm, roleMake)
+	v := h.menus("Tom", menuSingle, levelNorm, vsComputer, roleMake)
 	if got, want := joined(v), "Single game: Blue Tom vs Red Computer.|Tom makes the code."; got != want {
 		t.Errorf("line-up = %q, want %q", got, want)
 	}
@@ -476,7 +479,7 @@ func TestSessionSingleMaking(t *testing.T) {
 // rest of the round at once. Quit also works while it waits.
 func TestSessionSkip(t *testing.T) {
 	h := start(t, never)
-	h.menus("Tom", menuSingle, levelNorm, roleMake)
+	h.menus("Tom", menuSingle, levelNorm, vsComputer, roleMake)
 	h.send(startGame)
 	h.expect(ScreenSecret)
 	h.tap(mustParse(t, "OPYGK"), ScreenSecret)
@@ -502,7 +505,7 @@ func TestSessionSkip(t *testing.T) {
 // coin decided.
 func TestSessionCoinFlip(t *testing.T) {
 	h := start(t, instant)
-	v := h.menus("Tom", menuSingle, levelNorm, roleFlip)
+	v := h.menus("Tom", menuSingle, levelNorm, vsComputer, roleFlip)
 	if !strings.HasPrefix(v.Lines[1], "Coin flip: ") || !strings.HasSuffix(v.Lines[1], " makes the code.") {
 		t.Errorf("line-up = %q, want the coin flip", v.Lines)
 	}
@@ -553,7 +556,7 @@ func (p *solverPlayer) next(t *testing.T, v View) code.Code {
 // the scores after each round but the last, and the winner at the end.
 func TestSessionMatch(t *testing.T) {
 	h := start(t, instant)
-	v := h.menus("Tom", menuMatch, levelEasy)
+	v := h.menus("Tom", menuMatch, levelEasy, vsComputer)
 	if v.Title != "Match" || v.Lines[0] != "Match: Blue Tom vs Red Computer. First to 30 points wins." ||
 		!strings.HasPrefix(v.Lines[1], "Coin flip: ") {
 		t.Errorf("line-up = %q %q", v.Title, v.Lines)
@@ -601,7 +604,7 @@ func TestSessionMatch(t *testing.T) {
 // standings so far are shown.
 func TestSessionMatchQuit(t *testing.T) {
 	h := start(t, instant)
-	h.menus("Tom", menuMatch, levelNorm)
+	h.menus("Tom", menuMatch, levelNorm, vsComputer)
 	h.send(startGame)
 	p := &solverPlayer{rng: rand.New(rand.NewPCG(9, 9))}
 	for {
@@ -651,7 +654,7 @@ func TestSessionStops(t *testing.T) {
 	}
 	for _, role := range []Event{roleBreak, roleMake} {
 		h := start(t, never)
-		h.menus("Tom", menuSingle, levelNorm, role)
+		h.menus("Tom", menuSingle, levelNorm, vsComputer, role)
 		h.send(startGame)
 		h.next()
 		h.cancel()
@@ -665,7 +668,7 @@ func TestSessionStops(t *testing.T) {
 // game waits: during the computer's pause, and on a match's round summary.
 func TestSessionStopsMidGame(t *testing.T) {
 	h := start(t, never)
-	h.menus("Tom", menuSingle, levelNorm, roleMake)
+	h.menus("Tom", menuSingle, levelNorm, vsComputer, roleMake)
 	h.send(startGame)
 	h.expect(ScreenSecret)
 	h.tap(mustParse(t, "OPYGK"), ScreenSecret)
@@ -677,7 +680,7 @@ func TestSessionStopsMidGame(t *testing.T) {
 	}
 
 	h = start(t, instant)
-	h.menus("Tom", menuMatch, levelNorm)
+	h.menus("Tom", menuMatch, levelNorm, vsComputer)
 	h.send(startGame)
 	p := &solverPlayer{rng: rand.New(rand.NewPCG(9, 9))}
 	for v := h.next(); v.Screen != ScreenSummary; v = h.next() {

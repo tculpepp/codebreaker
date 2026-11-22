@@ -86,6 +86,7 @@ const SCREENS = {
   summary: drawBoard,
   result: drawBoard,
   help: drawHelp,
+  handoff: drawHandoff,
 };
 
 // lines draws a View's short text lines as paragraphs.
@@ -117,27 +118,30 @@ function choices(menu) {
   );
 }
 
-// drawName asks for the player's name. The last name used is remembered
-// on this device, for convenience; nothing leaves the device.
+// drawName asks for a player's name. The last name typed on each name
+// screen (first player, second player) is remembered on this device, for
+// convenience; nothing leaves the device.
 function drawName(v) {
+  const key = v.title;
   const input = el("input", {
     type: "text",
     maxlength: 40,
     autocomplete: "nickname",
-    "aria-label": "Your name",
-    placeholder: "Your name",
+    "aria-label": "Name",
+    placeholder: "Name",
     "data-focus": true,
-    value: loadName(),
+    value: loadName(key),
   });
   const form = el("form", {
     class: "name",
     onsubmit: (e) => {
       e.preventDefault();
-      saveName(input.value);
+      saveName(key, input.value);
       send({ kind: "text", text: input.value });
     },
   }, input, el("button", { class: "primary", type: "submit" }, "Continue"));
-  return [topbar(v.title, false), ...lines(v), form];
+  return [topbar(v.title, false), ...lines(v), form,
+    el("p", { class: "message", role: "alert" }, v.message || "")];
 }
 
 // drawMenu draws a title, some text and the choices.
@@ -148,6 +152,22 @@ function drawMenu(v) {
 // drawText draws a View with only text, such as an error from Go.
 function drawText(v) {
   return [el("h1", {}, v.title || ""), ...lines(v)];
+}
+
+// drawHandoff draws the "Pass the device" card between two people. It
+// shows no board, so nothing of the secret is on screen while the device
+// changes hands (D21).
+function drawHandoff(v) {
+  return [
+    el("div", { class: "topbar" },
+      el("span", { class: "spacer" }),
+      el("button", { class: "small", "aria-label": "Help", onclick: () => send({ kind: "help" }) }, "?"),
+      el("button", { class: "small", onclick: () => send({ kind: "quit" }) }, "Quit")),
+    el("div", { class: "handoff" },
+      el("h1", {}, v.title),
+      ...lines(v),
+      el("button", { class: "primary", "data-focus": true, onclick: () => send({ kind: "ready" }) }, "I'm ready")),
+  ];
 }
 
 // drawHelp draws the help sheet, with Close.
@@ -296,20 +316,20 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// loadName and saveName remember the last name on this device. Storage
-// can be missing or blocked (private windows, some settings), so both
-// fail quietly.
-function loadName() {
+// loadName and saveName remember the last name typed on each name
+// screen, keyed by its title, on this device. Storage can be missing or
+// blocked (private windows, some settings), so both fail quietly.
+function loadName(key) {
   try {
-    return localStorage.getItem("codebreaker.name") || "";
+    return localStorage.getItem("codebreaker.name." + key) || "";
   } catch {
     return "";
   }
 }
 
-function saveName(name) {
+function saveName(key, name) {
   try {
-    localStorage.setItem("codebreaker.name", name.trim());
+    localStorage.setItem("codebreaker.name." + key, name.trim());
   } catch {
     // Not remembered; nothing else depends on it.
   }
