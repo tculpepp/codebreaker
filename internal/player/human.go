@@ -36,8 +36,8 @@ var ErrSecretMismatch error = secretMismatch{}
 //
 // Go note: it's an empty struct, which takes no memory, because the error
 // needs no data, only methods. Besides Error it has a Friendly method,
-// which satisfies ui.Friendly without importing ui, so the screen shows a
-// friendly message for it.
+// which satisfies message.Friendly without importing message, so the
+// screen shows a friendly message for it.
 type secretMismatch struct{}
 
 // Error implements error.

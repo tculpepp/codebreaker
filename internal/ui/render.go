@@ -94,16 +94,7 @@ func (r *Renderer) Code(c code.Code) string {
 // (yellow), then a dim · for the rest. The order says nothing about which
 // pegs they mean.
 func (r *Renderer) Feedback(f code.Feedback) string {
-	var marks [code.Length]code.Mark
-	for i := range marks {
-		switch {
-		case i < f.Exact:
-			marks[i] = code.MarkExact
-		case i < f.Exact+f.Partial:
-			marks[i] = code.MarkPartial
-		}
-	}
-	return r.Marks(marks)
+	return r.Marks(f.Marks())
 }
 
 // Marks returns easy-mode feedback: the same symbols as Feedback, but each
@@ -338,13 +329,4 @@ func (r *Renderer) colorKey() string {
 		parts = append(parts, r.paint(pegColors[c], string(c.Abbrev()))+"="+c.Name())
 	}
 	return strings.Join(parts, " ")
-}
-
-// colorLetters lists every color letter: "K W R B G Y P O".
-func colorLetters() string {
-	letters := make([]string, 0, code.NumColors)
-	for _, c := range code.AllColors() {
-		letters = append(letters, string(c.Abbrev()))
-	}
-	return strings.Join(letters, " ")
 }

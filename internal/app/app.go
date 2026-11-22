@@ -51,7 +51,7 @@ func (e nameTakenError) Error() string {
 	return fmt.Sprintf("app: name %q is already taken", e.name)
 }
 
-// Friendly returns the message shown to the player (see ui.Friendly).
+// Friendly returns the message shown to the player (see message.Friendly).
 func (e nameTakenError) Friendly() string {
 	return e.name + " is already playing. Please choose a different name."
 }

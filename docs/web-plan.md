@@ -1,7 +1,7 @@
 # Codebreaker: Web App Plan (v2.0.0)
 
-**Version:** 0.1.0 (draft, for approval) · **Updated:** 2026-11-22
-**Implements:** `docs/requirements.md` v1.2.0: D19–D22 and "Web App Requirements". Everything else in the requirements (rules, scoring, modes, D18 Easy) applies unchanged.
+**Version:** 1.0.0 (approved) · **Updated:** 2026-11-22
+**Implements:** `docs/requirements.md` v1.3.0: D19–D25 and "Web App Requirements". Everything else in the requirements (rules, scoring, modes, D18 Easy) applies unchanged.
 **Companion to:** `docs/implementation-plan.md`, which covers the terminal version. Its §1 rules (heavy comments, `Go note:`s, test-first, 100% coverage where possible) apply here too.
 
 ## 0. Goal and ground rules
@@ -42,7 +42,7 @@ Checked before writing this plan (Go 1.27.4): `GOOS=js GOARCH=wasm go build ./in
 cmd/web ─▶ internal/web/bridge ─▶ internal/web ─▶ game, code, solver, player
                                                  (never input, ui or app)
 ```
-`player` imports `input` for the terminal `Human`, which pulls `golang.org/x/term` into the web build. It compiles (x/term has a stub for js), so it's acceptable. If it adds noticeable size (§7), `Computer` moves to its own package `player/computer` in v1.2.0, a pure move with no behavior change.
+`player` imports `input` for the terminal `Human`, which pulls `golang.org/x/term` into the web build. It compiles (x/term has a stub for js), and measured in v1.2.0 it adds about 40 KB (1%), so `Computer` stays where it is.
 
 ## 2. Project structure (new files only)
 
@@ -173,8 +173,8 @@ Colors travel as letters (`"R"`), and the page maps letters to CSS colors. The p
 
 ## 7. Size and performance
 
-- A standard Go build gives a `.wasm` of roughly 2–3 MB, about 0.6–0.9 MB compressed. GitHub Pages compresses it, and after the first visit it loads from the cache. Strip debug info with `-ldflags="-s -w"`.
-- The solver's first guess filters 6720 codes, and later ones far fewer. In WebAssembly this should still take milliseconds, but it's measured in v1.2.0, with the pause hiding it anyway.
+- Measured in v1.2.0 (Go 1.27.4, `-ldflags="-s -w"`, a probe program that plays a whole match and encodes a View): **4.5 MB raw, 1.24 MB gzipped**. That's more than first estimated, but GitHub Pages compresses it, and after the first visit it loads from the cache.
+- The solver is no concern: a whole round of solving takes about 0.36 ms in WebAssembly under Node, against 0.24 ms natively (`BenchmarkRound`).
 - TinyGo (much smaller output) is out of scope: it doesn't support all of the standard library this code uses, and it adds a second toolchain.
 
 ## 8. Testing
@@ -188,11 +188,11 @@ Colors travel as letters (`"R"`), and the page maps letters to CSS colors. The p
 | `render.js`, CSS, PWA | By hand, from a checklist kept in this plan: every screen, keyboard and touch, light and dark, offline after first load, install and launch on a Chromebook, a fresh deploy updating the cache | checklist |
 | Terminal | Every existing test and golden file unchanged | as now |
 
-CI gains a `web` job: build `dist/`, run the WebAssembly tests under Node, and fail if `.wasm` passes a size budget (5 MB, raw). Browser automation (such as Playwright) is out of scope for v2.0.0, so it adds no npm tooling, and could follow later.
+CI gains a `web` job: build `dist/`, run the WebAssembly tests under Node, and fail if `.wasm` passes a size budget (6 MB raw, about a third above the 4.5 MB measured in v1.2.0). Browser automation (such as Playwright) is out of scope for v2.0.0, so it adds no npm tooling, and could follow later.
 
-## 9. Decisions to confirm (the open questions in requirements.md)
+## 9. Decisions (approved 2026-11-22, recorded as D23–D25)
 
-| # | Question | Proposed answer |
+| # | Question | Answer |
 |---|---|---|
 | 1 | Go or JavaScript draws the page? | **Go sends a View, JavaScript draws it** (§1). Decisions stay in tested Go, and the JavaScript stays short. |
 | 2 | Where is it published? | **GitHub Pages**, from a public repository, deployed by Actions on each tag. Until then, `make serve` locally. |
@@ -204,7 +204,7 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 
 | Version | Scope | Done when |
 |---|---|---|
-| v1.2.0 | **Groundwork.** Move friendly messages to `internal/message` (terminal golden files unchanged). Add `internal/web` with `View`, `Event`, `Draft` and `Board`. Measure the wasm size and the solver's speed. Add a CI job running the shared tests as WebAssembly. | `internal/web` builds Views for a scripted round at 100% coverage. Terminal unchanged. |
+| ✅ v1.2.0 | **Groundwork.** Move friendly messages to `internal/message` (terminal golden files unchanged). Add `internal/web` with `View`, `Event`, `Draft` and `Board`. Measure the wasm size and the solver's speed. Add a CI job running the shared tests as WebAssembly. | `internal/web` builds Views for a scripted round at 100% coverage. Terminal unchanged. |
 | v1.3.0 | **First playable in the browser:** `Session` (Single game, human breaks the computer's code), `Tapper`, `bridge`, `cmd/web`, `web/index.html`, `render.js`, `style.css`, `make web` and `make serve`. | Play a Single game against the computer in Chrome at localhost, by tapping and by keyboard. |
 | v1.4.0 | **All of the game:** every menu (match, Normal/Easy, roles, coin flip), computer as Breaker with `Pacer` and Skip, round and match summaries, help, quit with standings, play again. | Everything a terminal player against the computer can do, the web player can do. |
 | v1.5.0 | **Human vs Human:** names, the secret screen, the handoff card, "I'm ready" (D21). | A scripted Human vs Human match passes, and the secret never appears in a Breaker's View (tested). |
@@ -227,3 +227,20 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 - An Android or Play Store app, and Chrome Apps (retired by Google)
 - Sound, animations beyond the computer's paced rows, saved high scores
 - TinyGo, JavaScript frameworks, npm tooling, browser test automation
+
+## 13. Status
+
+**v1.2.0 (groundwork) is done.** How it differs from the sketches above:
+- `internal/message` holds `For(err)` (the friendly wording, formerly `ui.FriendlyMessage`) and the `Friendly` interface. `ui.ChoiceError` now has a `Friendly` method, so `message` explains menu mistakes without importing `ui`. Every terminal golden file is unchanged.
+- `code.Feedback.Marks()` gives the Normal-difficulty marks (exact, then partial, then none). The terminal's `Renderer.Feedback` and the web `Board` both use it, so the order lives in one place.
+- `internal/web` has `View`, `Event`/`ParseEvent`, `Draft` and `Board`, at 100% coverage. Changes from §3:
+  - Players are `SeatView`s (`name`, `peg` as "blue" or "red" for CSS, `score`) rather than preformatted strings, so the page can color them. `BoardView` has `title`, `maker`, `breaker`, `scores` (match only, Blue first), `target`, `rows`, `draft`, `maxRows` and `easy`.
+  - There's a `close` event, to close help.
+  - `Draft` refuses a color already in the row (with the usual duplicate message), a full row (`ErrDraftFull`, "The row is full. Submit it, or Undo to change a peg."), and an invalid color.
+  - `Board` also keeps the last round's result and the final standings, for the summary screens.
+  - `testdata/board_match.golden.json` is the first part of the contract with `render.js`.
+- `make test-wasm` runs `code`, `game`, `solver`, `player`, `message` and `web` as WebAssembly under Node.js, and CI has a `wasm` job doing the same with Go 1.24 and the latest Go. Locally all six pass. CI still hasn't run, as the repository isn't published yet.
+- Measurements are in §7: 4.5 MB raw and 1.24 MB gzipped, `x/term` costs about 1%, and the solver is fast.
+
+**Next: v1.3.0**, the first version playable in the browser (§10).
+

@@ -249,3 +249,29 @@ func TestMarkString(t *testing.T) {
 		}
 	}
 }
+
+// TestFeedbackMarks checks the Normal-difficulty layout of feedback as
+// marks: all exact marks first, then partial, then none, so the order says
+// nothing about which pegs they mean (D9).
+func TestFeedbackMarks(t *testing.T) {
+	const (
+		x = MarkExact
+		p = MarkPartial
+		o = MarkNone
+	)
+	tests := []struct {
+		f    Feedback
+		want [Length]Mark
+	}{
+		{Feedback{}, [Length]Mark{o, o, o, o, o}},
+		{Feedback{Exact: 1, Partial: 2}, [Length]Mark{x, p, p, o, o}},
+		{Feedback{Partial: 5}, [Length]Mark{p, p, p, p, p}},
+		{Feedback{Exact: 5}, [Length]Mark{x, x, x, x, x}},
+		{Feedback{Exact: 3, Partial: 2}, [Length]Mark{x, x, x, p, p}},
+	}
+	for _, tt := range tests {
+		if got := tt.f.Marks(); got != tt.want {
+			t.Errorf("%+v.Marks() = %v, want %v", tt.f, got, tt.want)
+		}
+	}
+}

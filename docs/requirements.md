@@ -1,6 +1,6 @@
 # Codebreaker (Mastermind) - Game Requirements
 
-**Version:** 1.2.0 · **Updated:** 2026-11-22
+**Version:** 1.3.0 · **Updated:** 2026-11-22
 **Rules source of truth:** `references/Instructions_-_Code_Breaker_Bilingual.pdf` (the box rules). Where the English and French text differ, the English text governs unless a decision below says otherwise.
 
 ## Overview
@@ -32,6 +32,9 @@ A terminal-based implementation of Code Breaker (Mastermind-style), with a web v
 | D20 | Web input | Guesses and secrets are built by tapping colors in a palette (touch and mouse), or by typing the color letters on a keyboard. The terminal's typed text formats are not needed. | Project owner |
 | D21 | Web hidden code | In Human vs Human, the Maker builds the secret on their own screen, then a "pass the device" screen hides it until the Breaker taps "I'm ready". The secret isn't entered twice: the Maker can see and fix it before confirming. | Adapts D10 to a shared screen |
 | D22 | Web offline | Once opened, the web app works without a network connection, and it can be installed to the launcher. There's no server: everything runs on the device. | Project owner |
+| D23 | Web drawing | Go decides what's on screen and sends the page a complete description of it (a View); a small JavaScript renderer only draws it and sends back events. | Project owner (approved 2026-11-22) |
+| D24 | Web publishing | GitHub Pages, from a public repository, deployed by GitHub Actions on each release tag. Until then, served locally. | Project owner (approved 2026-11-22) |
+| D25 | Web name and icon | "Codebreaker", with an icon of five colored pegs over a ● △ row. | Project owner (approved 2026-11-22) |
 
 ## Core Game Parameters
 
@@ -179,13 +182,10 @@ The rules, scoring, modes, difficulty and computer player are the same as above.
 - Stronger AI (Knuth/minimax): a possible later enhancement
 
 ## Open Questions
-Web version (v2.0.0). The implementation plan, `web-plan.md` §9, proposes an answer for each:
-
-1. Who draws the web page: Go (through `syscall/js`), or a small JavaScript renderer fed by Go?
-2. Where is it published? GitHub Pages needs a public repository on a free GitHub plan.
-3. The app's name and icon on the launcher.
+None. The web version's questions are resolved as D23–D25.
 
 ## Changelog
+- **1.3.0** (2026-11-22): The web version's open questions resolved as D23–D25: Go sends Views and JavaScript draws them, GitHub Pages from a public repository, and the name and icon.
 - **1.2.0** (2026-11-22): Recorded the Easy difficulty, added in v1.1.0, as D18 (amends D9). Added the web version: D19–D22, the Web App Requirements, and open questions for it.
 - **1.1.0** (2026-11-21): Added the learning-tool commenting requirement.
 - **1.0.0** (2026-11-21): Open questions resolved as D13–D17: Single Game is one round, repeated guesses are rejected, the immediate win at 30 is kept, there is no round cap, and Computer vs Computer is for tests only. Requirements baselined.

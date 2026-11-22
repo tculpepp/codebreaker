@@ -37,6 +37,23 @@ func (m Mark) String() string {
 	}
 }
 
+// Marks returns the feedback as marks in the Normal-difficulty order: all
+// the exact marks first, then the partial ones, then none. Unlike the
+// marks from the Marks function, their positions say nothing about which
+// guess pegs they mean (D9). Screens draw both kinds the same way.
+func (f Feedback) Marks() [Length]Mark {
+	var marks [Length]Mark
+	for i := range marks {
+		switch {
+		case i < f.Exact:
+			marks[i] = MarkExact
+		case i < f.Exact+f.Partial:
+			marks[i] = MarkPartial
+		}
+	}
+	return marks
+}
+
 // Marks scores a guess position by position, for easy mode. The mark at
 // index i is about guess[i]. Counting the marks always gives the same
 // numbers as Score.

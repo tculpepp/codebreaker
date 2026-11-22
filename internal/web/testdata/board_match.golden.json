@@ -1,0 +1,111 @@
+{
+  "screen": "board",
+  "board": {
+    "title": "Match · Round 3",
+    "maker": {
+      "name": "Computer",
+      "peg": "red",
+      "score": 10
+    },
+    "breaker": {
+      "name": "Tom",
+      "peg": "blue",
+      "score": 18
+    },
+    "scores": [
+      {
+        "name": "Tom",
+        "peg": "blue",
+        "score": 18
+      },
+      {
+        "name": "Computer",
+        "peg": "red",
+        "score": 10
+      }
+    ],
+    "target": 30,
+    "rows": [
+      {
+        "row": 1,
+        "guess": [
+          {
+            "letter": "W",
+            "name": "White"
+          },
+          {
+            "letter": "G",
+            "name": "Green"
+          },
+          {
+            "letter": "P",
+            "name": "Pink"
+          },
+          {
+            "letter": "O",
+            "name": "Orange"
+          },
+          {
+            "letter": "R",
+            "name": "Red"
+          }
+        ],
+        "feedback": [
+          "exact",
+          "partial",
+          "none",
+          "none",
+          "none"
+        ]
+      },
+      {
+        "row": 2,
+        "guess": [
+          {
+            "letter": "K",
+            "name": "Black"
+          },
+          {
+            "letter": "G",
+            "name": "Green"
+          },
+          {
+            "letter": "R",
+            "name": "Red"
+          },
+          {
+            "letter": "B",
+            "name": "Blue"
+          },
+          {
+            "letter": "W",
+            "name": "White"
+          }
+        ],
+        "feedback": [
+          "exact",
+          "exact",
+          "partial",
+          "partial",
+          "none"
+        ]
+      }
+    ],
+    "draft": [
+      {
+        "letter": "K",
+        "name": "Black"
+      },
+      {},
+      {},
+      {},
+      {}
+    ],
+    "maxRows": 12
+  },
+  "input": {
+    "palette": true,
+    "undo": true,
+    "submit": true
+  }
+}

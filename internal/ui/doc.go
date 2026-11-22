@@ -1,6 +1,6 @@
 // Package ui draws the game in the terminal: the board, the scores, the
-// end-of-round and end-of-match summaries, menus, help, and friendly error
-// messages.
+// end-of-round and end-of-match summaries, menus, help, and error
+// messages (worded by package message).
 //
 // # Where it fits
 //
@@ -20,10 +20,8 @@
 //
 //   - strings.Builder for building output efficiently
 //   - Writing to any io.Writer, so tests can capture the output
-//   - errors.As for picking out an error's concrete type
 //   - fmt widths, which count runes (characters) rather than bytes
 //   - Golden-file tests and a custom -update test flag
-//   - errors.As with an interface target (the Friendly interface)
 //   - ANSI escape codes, and detecting a terminal with a type assertion
 //   - regexp, compiled once in a package-level variable
 //   - Build constraints (//go:build) for Windows-only code

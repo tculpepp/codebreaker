@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,29 +74,5 @@ func TestIsTerminal(t *testing.T) {
 	defer f.Close()
 	if isTerminal(f) {
 		t.Error("isTerminal(regular file) = true, want false")
-	}
-}
-
-// selfExplaining is an error that carries its own message for the player.
-type selfExplaining struct{}
-
-// Error implements error.
-func (selfExplaining) Error() string { return "player: secrets differ" }
-
-// Friendly implements Friendly.
-func (selfExplaining) Friendly() string { return "The two codes don't match." }
-
-// TestFriendlyInterface checks that any error with a Friendly method is
-// shown with that message, even when wrapped. Other packages can make
-// their errors friendly this way without ui knowing about them.
-func TestFriendlyInterface(t *testing.T) {
-	for _, err := range []error{selfExplaining{}, fmt.Errorf("making secret: %w", selfExplaining{})} {
-		if got, want := FriendlyMessage(err), "The two codes don't match."; got != want {
-			t.Errorf("FriendlyMessage(%v) = %q, want %q", err, got, want)
-		}
-	}
-	// A plain error still shows its own text.
-	if got := FriendlyMessage(errors.New("plain")); got != "plain" {
-		t.Errorf("FriendlyMessage(plain) = %q", got)
 	}
 }

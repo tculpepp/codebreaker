@@ -8,7 +8,7 @@ import (
 
 // TestErrorMessages pins down the text of each error's Error() method.
 // These are developer-facing messages (logs, test output). The friendly
-// player-facing wording is produced separately by ui.FriendlyMessage.
+// player-facing wording is produced separately by message.For.
 func TestErrorMessages(t *testing.T) {
 	tests := []struct {
 		name string

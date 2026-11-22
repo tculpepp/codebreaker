@@ -64,6 +64,7 @@ Exit codes: 0 for a normal finish or quitting, 2 for bad flags, 130 after Ctrl-C
 ```sh
 make test         # all tests, with the race detector
 make test-short   # skips the slow test that solves all 6720 codes
+make test-wasm    # the web version's packages, as WebAssembly under Node.js
 make cover        # coverage report (coverage.html)
 make lint         # go vet + staticcheck, including doc-comment checks
 make doc          # every package's documentation, as `go doc` shows it
@@ -77,7 +78,7 @@ go test ./internal/ui ./internal/app -update
 git diff internal/*/testdata
 ```
 
-CI (`.github/workflows/ci.yml`) runs the tests on Linux, macOS and Windows with Go 1.24 and the latest Go, and checks formatting and staticcheck.
+CI (`.github/workflows/ci.yml`) runs the tests on Linux, macOS and Windows with Go 1.24 and the latest Go, runs the web version's packages as WebAssembly, and checks formatting and staticcheck.
 
 ### Project layout
 
@@ -91,6 +92,8 @@ internal/
   input/    reading answers: prompts, hidden input, Ctrl-C
   ui/       drawing: board, colors, menus, messages
   app/      the menus and wiring that make it a program
+  message/  friendly wording for mistakes, shared by both front ends
+  web/      the browser version's logic: screens as Views, events, the board (in progress)
 docs/       requirements and implementation plan
 ```
 
@@ -133,9 +136,11 @@ grep -rn "Go note:" internal/ cmd/
 | `ui` | `strings.Builder`, ANSI escape codes, `regexp`, build tags (`vt_windows.go`), `errors.As` with an interface, golden-file tests and the `-update` flag, `t.Setenv` |
 | `app` | A state machine, `flag.FlagSet`, keeping `main` small, unexported `run` for testing, exit codes, wrapping an interface by embedding it |
 | `cmd/codebreaker` | `signal.NotifyContext`, why `os.Exit` skips `defer` |
+| `message` | `errors.As` with concrete and interface targets, extracting a package so two others can share it |
+| `web` | Struct tags and `encoding/json`, `omitempty`, pointer fields for optional parts, string enums, golden JSON files |
 
 ## Documents
 
 - [Requirements](docs/requirements.md): the game rules and the decisions behind them
 - [Implementation plan](docs/implementation-plan.md): architecture, milestones, testing, and how the code ended up differing from the plan
-- [Web app plan](docs/web-plan.md): the planned v2.0.0 browser and Chromebook version (draft)
+- [Web app plan](docs/web-plan.md): the planned v2.0.0 browser and Chromebook version

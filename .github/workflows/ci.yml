@@ -1,6 +1,7 @@
 # Runs the tests on Linux, macOS and Windows, with both the oldest
 # supported Go (1.24, from go.mod) and the newest, plus formatting and
-# staticcheck. See docs/implementation-plan.md §8.
+# staticcheck. See docs/implementation-plan.md §8. The wasm job runs the
+# web version's packages as WebAssembly (docs/web-plan.md §8).
 name: CI
 
 on:
@@ -38,6 +39,24 @@ jobs:
         run: go test ./...
       - name: Build
         run: go build ./cmd/codebreaker
+
+  wasm:
+    name: test (WebAssembly, Go ${{ matrix.go }})
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.24.x", "stable"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Test as WebAssembly under Node.js
+        run: make test-wasm
 
   lint:
     runs-on: ubuntu-latest
