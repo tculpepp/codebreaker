@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // TestChoiceErrorIsFriendly checks the message shown for a bad menu

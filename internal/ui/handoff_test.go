@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // TestClearPlain checks that, when output isn't a terminal (piped, or a

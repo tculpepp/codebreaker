@@ -13,8 +13,8 @@ import (
 	"math/rand/v2"
 	"time"
 
-	"codebreaker/internal/web"
-	"codebreaker/internal/web/bridge"
+	"github.com/tculpepp/codebreaker/internal/web"
+	"github.com/tculpepp/codebreaker/internal/web/bridge"
 )
 
 // main runs the game until the page is closed.

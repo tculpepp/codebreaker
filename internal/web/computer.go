@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/player"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/player"
 )
 
 // pacedComputer is the computer player as the web page shows it. It makes

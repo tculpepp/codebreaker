@@ -32,7 +32,7 @@ import (
 	"encoding/json"
 	"syscall/js"
 
-	"codebreaker/internal/web"
+	"github.com/tculpepp/codebreaker/internal/web"
 )
 
 // Render draws v on the page by passing it, as JSON, to the page's

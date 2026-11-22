@@ -13,7 +13,7 @@ import (
 // it otherwise), and no caching, so a rebuild shows up on reload.
 func TestHandler(t *testing.T) {
 	dir := t.TempDir()
-	for name, body := range map[string]string{"index.html": "<p>hi</p>", "codebreaker.wasm": "\x00asm"} {
+	for name, body := range map[string]string{"index.html": "<p>hi</p>", "codebreaker.wasm": "\x00asm", "manifest.webmanifest": "{}"} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -26,6 +26,7 @@ func TestHandler(t *testing.T) {
 	}{
 		{"/", "text/html; charset=utf-8", http.StatusOK},
 		{"/codebreaker.wasm", "application/wasm", http.StatusOK},
+		{"/manifest.webmanifest", "application/manifest+json", http.StatusOK},
 		{"/missing.js", "", http.StatusNotFound},
 	}
 	for _, tt := range tests {

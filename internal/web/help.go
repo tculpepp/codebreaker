@@ -3,8 +3,8 @@ package web
 import (
 	"fmt"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // helpView is the help sheet: the rules in short, the controls, and the

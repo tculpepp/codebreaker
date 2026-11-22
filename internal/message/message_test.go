@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // mustParse turns a code string into a code.Code, failing the test on a

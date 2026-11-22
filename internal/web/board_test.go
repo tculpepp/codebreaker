@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // playTurns records a round on b: it starts, then each guess is scored

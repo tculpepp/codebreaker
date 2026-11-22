@@ -11,6 +11,7 @@ package main
 import (
 	"flag"
 	"log"
+	"mime"
 	"net/http"
 )
 
@@ -33,6 +34,10 @@ func main() {
 // an ordinary function into an http.Handler, so it can wrap the file
 // server and add a header first.
 func handler(dir string) http.Handler {
+	// Go note: mime.AddExtensionType teaches the whole program a file
+	// type. Go doesn't know .webmanifest, which browsers expect as
+	// application/manifest+json. The error is only for a malformed type.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")

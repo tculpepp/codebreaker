@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // ready is the event for tapping "I'm ready" on a handoff card.

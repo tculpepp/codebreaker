@@ -10,9 +10,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/player"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/player"
 )
 
 // ErrQuit is returned by a player when the person taps Quit. The session

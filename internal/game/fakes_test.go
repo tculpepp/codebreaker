@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // This file holds test doubles: simple stand-ins for real players and for

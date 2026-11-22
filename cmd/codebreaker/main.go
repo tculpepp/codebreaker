@@ -21,7 +21,7 @@ import (
 	"os"
 	"os/signal"
 
-	"codebreaker/internal/app"
+	"github.com/tculpepp/codebreaker/internal/app"
 )
 
 // main runs the game on the terminal and exits with app.ExitCode.

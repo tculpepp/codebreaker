@@ -7,7 +7,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // ErrBadEvent is wrapped by ParseEvent for anything the page sent that

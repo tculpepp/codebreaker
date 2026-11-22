@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // RoundStatus says whether a round is still being played and, if not, how

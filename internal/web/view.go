@@ -1,8 +1,8 @@
 package web
 
 import (
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Screen names which screen the page should draw.

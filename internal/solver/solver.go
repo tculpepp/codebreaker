@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/rand/v2"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // ErrNoCandidates is returned by Next when no code fits all the feedback

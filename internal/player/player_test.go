@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/input"
-	"codebreaker/internal/solver"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/input"
+	"github.com/tculpepp/codebreaker/internal/solver"
 )
 
 // seeded returns a random generator with a fixed seed, for reproducible

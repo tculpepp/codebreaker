@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Friendly is implemented by errors that carry their own message for the

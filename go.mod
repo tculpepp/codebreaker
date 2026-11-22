@@ -1,4 +1,4 @@
-module codebreaker
+module github.com/tculpepp/codebreaker
 
 go 1.24.0
 

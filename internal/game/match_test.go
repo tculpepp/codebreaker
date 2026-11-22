@@ -7,7 +7,7 @@ import (
 	"slices"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // seeded returns a random generator with a fixed seed, for reproducible

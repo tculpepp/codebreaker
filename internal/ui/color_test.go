@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // allowColor sets the environment so that only Options decide about

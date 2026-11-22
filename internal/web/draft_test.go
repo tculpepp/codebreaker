@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/message"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/message"
 )
 
 // TestDraftBuildsACode adds five colors, undoes one, and finishes the

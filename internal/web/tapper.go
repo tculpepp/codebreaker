@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/message"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/message"
 )
 
 // Tapper is a human player on the web page. Its guesses and secrets are

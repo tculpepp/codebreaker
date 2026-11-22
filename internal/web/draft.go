@@ -3,7 +3,7 @@ package web
 import (
 	"slices"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // ErrDraftFull is returned by Draft.Add when all code.Length slots are

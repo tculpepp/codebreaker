@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // TestParseEvent checks the events the page can send, as JSON. Color

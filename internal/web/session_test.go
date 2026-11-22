@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/solver"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/solver"
 )
 
 // Pacers for tests: instant lets the computer guess at once; never makes it

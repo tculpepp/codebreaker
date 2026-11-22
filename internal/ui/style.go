@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Options choose how a Renderer draws. The zero value, Options{}, means

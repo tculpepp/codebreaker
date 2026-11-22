@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Board column widths, in characters, not counting the borders. The guess

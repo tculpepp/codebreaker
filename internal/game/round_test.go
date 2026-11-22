@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // wrongGuesses returns n different valid codes, none equal to secret. Tests

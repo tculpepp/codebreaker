@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // RoundResult is the record of one finished round.

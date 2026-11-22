@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Welcome draws the title banner shown when the game starts.

@@ -12,9 +12,9 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/input"
-	"codebreaker/internal/ui"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/input"
+	"github.com/tculpepp/codebreaker/internal/ui"
 )
 
 // update rewrites testdata/*.golden instead of comparing against them:

@@ -4,9 +4,9 @@ import (
 	"context"
 	"math/rand/v2"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/solver"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/solver"
 )
 
 // Computer is a computer-controlled player. As Code Maker it picks a

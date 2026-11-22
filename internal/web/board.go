@@ -3,7 +3,7 @@ package web
 import (
 	"fmt"
 
-	"codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/game"
 )
 
 // Board keeps the current round's board, so a View of it can be built at

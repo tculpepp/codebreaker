@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // Go note: a "sentinel error" is a package-level error value that callers

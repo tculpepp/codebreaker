@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"codebreaker/internal/code"
-	"codebreaker/internal/game"
-	"codebreaker/internal/input"
+	"github.com/tculpepp/codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/input"
 )
 
 // Screen is what a Human needs from the display: a way to report a

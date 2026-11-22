@@ -10,10 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"codebreaker/internal/game"
-	"codebreaker/internal/input"
-	"codebreaker/internal/player"
-	"codebreaker/internal/ui"
+	"github.com/tculpepp/codebreaker/internal/game"
+	"github.com/tculpepp/codebreaker/internal/input"
+	"github.com/tculpepp/codebreaker/internal/player"
+	"github.com/tculpepp/codebreaker/internal/ui"
 )
 
 // Exit codes returned by ExitCode (implementation-plan.md §4).

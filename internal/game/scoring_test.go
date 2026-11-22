@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // mustParse turns "RGYBK" into a code.Code or stops the test. It is shared

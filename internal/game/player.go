@@ -3,7 +3,7 @@ package game
 import (
 	"context"
 
-	"codebreaker/internal/code"
+	"github.com/tculpepp/codebreaker/internal/code"
 )
 
 // Go note: these interfaces are declared here, in the package that *uses*

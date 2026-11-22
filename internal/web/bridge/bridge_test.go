@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"codebreaker/internal/web"
+	"github.com/tculpepp/codebreaker/internal/web"
 )
 
 // fakePage stands in for render.js: it defines codebreakerRender, which

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codebreaker/internal/message"
+	"github.com/tculpepp/codebreaker/internal/message"
 )
 
 // ChoiceError reports a menu answer that isn't one of the listed numbers.
