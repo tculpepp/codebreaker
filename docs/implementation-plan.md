@@ -101,7 +101,8 @@ type Feedback struct{ Exact, Partial int }   // ● black key peg / △ white ke
 const (MaxRows = 12; TargetScore = 30)       // D3, D5: fixed by the rules
 type Mode int                                // Single, Match
 type PegColor int                            // Blue, Red (D11)
-type Config struct { Mode Mode; FirstMaker int } // FirstMaker: 0, 1, or -1 = coin flip
+type FirstMaker int                         // FirstMakerCoinFlip (zero value), FirstMakerSeat0, FirstMakerSeat1
+type Config struct { Mode Mode; FirstMaker FirstMaker } // zero value = full match + coin flip
 type Turn struct { Row int; Guess code.Code; Feedback code.Feedback }
 type RoundStatus int                         // InProgress, Solved, OutOfRows, Abandoned
 type Round struct { secret code.Code; turns []Turn; status RoundStatus }
