@@ -138,3 +138,4 @@ grep -rn "Go note:" internal/ cmd/
 
 - [Requirements](docs/requirements.md): the game rules and the decisions behind them
 - [Implementation plan](docs/implementation-plan.md): architecture, milestones, testing, and how the code ended up differing from the plan
+- [Web app plan](docs/web-plan.md): the planned v2.0.0 browser and Chromebook version (draft)

@@ -1,10 +1,10 @@
-# Codebreaker (Mastermind) - Terminal Game Requirements
+# Codebreaker (Mastermind) - Game Requirements
 
-**Version:** 1.1.0 · **Updated:** 2026-11-21
+**Version:** 1.2.0 · **Updated:** 2026-11-22
 **Rules source of truth:** `references/Instructions_-_Code_Breaker_Bilingual.pdf` (the box rules). Where the English and French text differ, the English text governs unless a decision below says otherwise.
 
 ## Overview
-A terminal-based implementation of Code Breaker (Mastermind-style). Two players take turns as Code Maker and Code Breaker. The Breaker deduces a hidden 5-color code from feedback; points are scored on a 30-hole track, and the first player to reach 30 wins.
+A terminal-based implementation of Code Breaker (Mastermind-style), with a web version for Chromebooks and other browsers planned for v2.0.0 (see "Web App Requirements"). Two players take turns as Code Maker and Code Breaker. The Breaker deduces a hidden 5-color code from feedback; points are scored on a 30-hole track, and the first player to reach 30 wins.
 
 ## Decisions Log
 
@@ -18,7 +18,7 @@ A terminal-based implementation of Code Breaker (Mastermind-style). Two players 
 | D6 | Role order | A coin flip (random) picks the first Code Maker. Roles swap after every round. | PDF §1, §8 |
 | D7 | Code rules | 5 positions, 8 colors, each color at most once, no blanks. | PDF §2 (normal rules) |
 | D8 | Feedback | Computed automatically by the game, not entered by the Code Maker. Prevents errors and cheating, and is required when the computer is the Code Maker. | Deviation from PDF §6 (software necessity) |
-| D9 | Feedback meaning | Black key peg (shown as ●) = right color, right position. White key peg (shown as △) = right color, wrong position. Shown as counts in a fixed order, never tied to specific positions. | PDF §6 (English; the French text swaps black/white) |
+| D9 | Feedback meaning | Black key peg (shown as ●) = right color, right position. White key peg (shown as △) = right color, wrong position. Shown as counts in a fixed order, never tied to specific positions, except on the Easy difficulty (D18). | PDF §6 (English; the French text swaps black/white) |
 | D10 | Hidden code | The Code Maker's code is hidden from the Breaker (the box's lid). In Human vs Human, the code is typed hidden and the screen is cleared before handoff. | PDF §2 |
 | D11 | Scoring pegs | Players are identified as **Blue** and **Red** (their scoring-peg colors), alongside their names. | PDF §1 |
 | D12 | Advanced options | Duplicate colors and blank positions are **out of scope**. | PDF "Advanced Options" (optional variant) |
@@ -27,6 +27,11 @@ A terminal-based implementation of Code Breaker (Mastermind-style). Two players 
 | D15 | First-Breaker advantage | Accepted. The match ends immediately when a player reaches 30, as D5 says; there is no "equal turns" rule. | PDF "How to Win" |
 | D16 | Endless matches | No round cap. The quit command ends the match at any time and shows the standings. | Project owner (PDF silent) |
 | D17 | Computer vs Computer | Not offered in the menu. Used only for automated tests and demos. | Project owner (PDF silent) |
+| D18 | Easy difficulty | A Difficulty menu (Normal or Easy, or `-difficulty`) comes after the main menu. On Easy, each key peg is shown in the same position as the guess peg it scores. Scoring is unchanged, and the computer Code Breaker still uses only the counts. Added in v1.1.0. | Project owner (deviation from PDF §6, as a learning aid) |
+| D19 | Web version | A second front end runs in the browser as an installable Progressive Web App, for Chromebooks first. The terminal version stays, unchanged, and both share the rules code. | Project owner |
+| D20 | Web input | Guesses and secrets are built by tapping colors in a palette (touch and mouse), or by typing the color letters on a keyboard. The terminal's typed text formats are not needed. | Project owner |
+| D21 | Web hidden code | In Human vs Human, the Maker builds the secret on their own screen, then a "pass the device" screen hides it until the Breaker taps "I'm ready". The secret isn't entered twice: the Maker can see and fix it before confirming. | Adapts D10 to a shared screen |
+| D22 | Web offline | Once opened, the web app works without a network connection, and it can be installed to the launcher. There's no server: everything runs on the device. | Project owner |
 
 ## Core Game Parameters
 
@@ -136,6 +141,19 @@ One round (D13). Roles are picked in the menu, or by coin flip. The round follow
    - Friendly messages for invalid letters, wrong length, and repeated colors
    - A quit command (`q`) works at any prompt and shows the current standings
 
+## Web App Requirements (v2.0.0, proposed)
+
+The rules, scoring, modes, difficulty and computer player are the same as above. Only the way the game is shown and played changes.
+
+1. **Platform:** current Chrome on ChromeOS is the target. Other current browsers (Chrome, Edge, Firefox, Safari) on desktop and mobile should work too. Installable as a PWA (D19, D22).
+2. **Screens:** the same flow as the terminal: names, main menu, difficulty, opponent, role (Single game), line-up and coin flip, the board, round summary, match result, play again. Help is one tap away on every screen. Quitting shows the standings, as `q` does (D16).
+3. **Board:** the same information as the terminal game screen (UI Requirement 2). Each peg shows its color and its letter, so the game is playable without telling colors apart. Feedback uses ● and △, by position on Easy (D18).
+4. **Input:** a palette of the 8 colors, a draft row of 5 slots, Undo and Submit (D20). Keyboard: color letters, Backspace and Enter. A color already in the draft can't be added again. Repeated guesses are refused with a message and don't use a row (D14).
+5. **Computer as Breaker:** its guesses appear one row at a time with a short pause, so the player can follow them. A "Skip" button shows the result at once.
+6. **Human vs Human:** follows D21.
+7. **Accessibility:** tap targets at least 44 px; every peg and button has a text label for screen readers; works at phone width and on a 1366×768 Chromebook screen; light and dark themes follow the system.
+8. **Privacy:** no accounts, analytics or network calls. Player names may be remembered on the device for convenience.
+
 ## Computer Player
 - **As Code Maker:** picks a random valid code.
 - **As Code Breaker:** required, because roles swap. Must use only the feedback it has received, and must solve every possible code within 12 rows. A simple consistent-guess solver is enough for v1.
@@ -143,7 +161,7 @@ One round (D13). Roles are picked in the menu, or by coin flip. The round follow
 ## Technical Requirements
 - **Language:** Go 1.24+ (D1)
 - **Platform:** Cross-platform (Linux, macOS, Windows)
-- **Dependencies:** Standard library plus `golang.org/x/term` (hidden input, terminal detection)
+- **Dependencies:** Standard library plus `golang.org/x/term` (hidden input, terminal detection) and `golang.org/x/sys` (Windows console). The web version adds no Go dependencies; its page uses plain HTML, CSS and JavaScript with no framework or build step.
 - **Architecture:** Modular packages for:
   - Game rules (codes, validation, feedback)
   - Game state (rounds, match, scoring)
@@ -161,9 +179,14 @@ One round (D13). Roles are picked in the menu, or by coin flip. The round follow
 - Stronger AI (Knuth/minimax): a possible later enhancement
 
 ## Open Questions
-None. All earlier questions are resolved as D13–D17.
+Web version (v2.0.0). The implementation plan, `web-plan.md` §9, proposes an answer for each:
+
+1. Who draws the web page: Go (through `syscall/js`), or a small JavaScript renderer fed by Go?
+2. Where is it published? GitHub Pages needs a public repository on a free GitHub plan.
+3. The app's name and icon on the launcher.
 
 ## Changelog
+- **1.2.0** (2026-11-22): Recorded the Easy difficulty, added in v1.1.0, as D18 (amends D9). Added the web version: D19–D22, the Web App Requirements, and open questions for it.
 - **1.1.0** (2026-11-21): Added the learning-tool commenting requirement.
 - **1.0.0** (2026-11-21): Open questions resolved as D13–D17: Single Game is one round, repeated guesses are rejected, the immediate win at 30 is kept, there is no round cap, and Computer vs Computer is for tests only. Requirements baselined.
 - **0.2.0** (2026-11-21): Rules aligned to the box PDF (D2–D12). Language fixed as Go (D1). Scoring changed to the Breaker row brackets with a first-to-30 win. Added 12-row limit, coin flip, automatic feedback, and open questions.
