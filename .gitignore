@@ -18,6 +18,10 @@ coverage.html
 .vscode/
 *.swp
 
+# The box's printed rules (the game maker's copyrighted text): kept locally
+# as the rules authority, never published
+/references/
+
 # Local Claude settings
 .claude/settings.local.json
 
