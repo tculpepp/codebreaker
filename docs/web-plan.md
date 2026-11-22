@@ -208,7 +208,7 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 | ✅ v1.3.0 | **First playable in the browser:** `Session` (Single game, human breaks the computer's code), `Tapper`, `bridge`, `cmd/web`, `web/index.html`, `render.js`, `style.css`, `make web` and `make serve`. | Play a Single game against the computer in Chrome at localhost, by tapping and by keyboard. |
 | ✅ v1.4.0 | **All of the game:** every menu (match, Normal/Easy, roles, coin flip), computer as Breaker with `Pacer` and Skip, round and match summaries, help, quit with standings, play again. | Everything a terminal player against the computer can do, the web player can do. |
 | ✅ v1.5.0 | **Human vs Human:** names, the secret screen, the handoff card, "I'm ready" (D21). | A scripted Human vs Human match passes, and the secret never appears in a Breaker's View (tested). |
-| v2.0.0 | **Installable and published:** manifest, icons, service worker with versioned cache and update prompt, accessibility pass, README section ("Play in the browser / on a Chromebook"), Pages deploy workflow, the manual checklist done on a real Chromebook. | Installed on a Chromebook from the published URL, launched from the launcher, a full match played offline. |
+| ✅ v2.0.0 | **Installable and published:** manifest, icons, service worker with versioned cache and update prompt, accessibility pass, README section ("Play in the browser / on a Chromebook"), Pages deploy workflow, the manual checklist done on a real Chromebook. | Installed on a Chromebook from the published URL, launched from the launcher, a full match played offline. |
 
 ## 11. Risks
 
@@ -271,5 +271,21 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 - The page draws the handoff as a centered card with one "I'm ready" button (Enter works). Each name screen now remembers its own last name, keyed by the screen's title, and shows the taken-name message; both were bugs found in the browser check.
 - Checked in a real Chrome window through the Claude in Chrome extension: the opponent menu, the taken-name message, the role menu with both names, both handoff cards, the secret screen, Tom's board without the secret, and the result, with no console errors. Loading from localhost took more than 2 seconds, which matters only to scripted checks.
 
-**Next: v2.0.0**, installable and published: manifest, icons, service worker, accessibility pass, README section, Pages deploy workflow, and the checklist on a real Chromebook (§10).
+**v2.0.0 (installable and published) is done**, apart from the last check on a real Chromebook (the checklist below). How it differs from the sketches above:
+- The repository is public at https://github.com/tculpepp/codebreaker under the MIT license, and the module path is `github.com/tculpepp/codebreaker`, so the terminal game installs with `go install github.com/tculpepp/codebreaker/cmd/codebreaker@latest`. Before publishing, the box rules PDF was removed from the whole history (it's the game maker's text) and is now git-ignored; it stays on disk as the rules authority.
+- `manifest.webmanifest`: name, colors, `display: standalone`, icons at 192 and 512 px plus a maskable 512 px one and the SVG. The icons are drawn as SVG (`web/icons/icon.svg`, `maskable.svg`) and exported to PNG with Inkscape; the PNGs are committed so a build needs no Inkscape.
+- `sw.js`: cache-first for every file, one cache per build, named `codebreaker-<git describe>-<build time>` (stamped in by `make web`). A new version installs alongside and waits; the page shows "A new version of Codebreaker is ready. Reload", which tells it to take over, and the old cache is deleted.
+- Accessibility pass: keyboard focus stays on the same button after every redraw (`data-key`), there's a visible focus ring, one short announcement per change goes to a hidden live region (a new row's colors and result, or a new screen's heading and text) instead of the page re-reading itself, and the page title follows the screen.
+- `tools/serve` serves `.webmanifest` as `application/manifest+json`.
+- `.github/workflows/pages.yml` builds `dist/` with the Go version from go.mod and deploys it to GitHub Pages on every `v*` tag (or by hand). Pages is set to deploy from Actions, and the `github-pages` environment allows `v*` tags.
+- Checked in headless Chrome: Chrome reports no installability errors and no manifest errors; with the server stopped, a reload still loads the game from the cache; a rebuild shows the Reload banner, and Reload switches versions and deletes the old cache; light mode.
+
+**Checklist for a real Chromebook** (by hand, from the published address):
+1. Open https://tculpepp.github.io/codebreaker/ in Chrome. The name screen appears.
+2. Install it (Install in the address bar, or ⋮ → Cast, save and share → Install page as app). Codebreaker appears in the launcher with the peg icon.
+3. Open it from the launcher: it has its own window, and the board and palette fit without scrolling.
+4. Play a Match against the computer on Easy, by touch and by keyboard, including Skip and Quit.
+5. Play a Single game against another person: both "Pass the device" cards appear, and the secret is never on the Breaker's screen.
+6. Turn Wi-Fi off, close and reopen the app, and play a round.
+7. After a new release, reopen the app: the Reload banner appears, and Reload switches to the new version.
 

@@ -18,6 +18,10 @@ WASM_EXEC := $(shell go env GOROOT)/lib/wasm/go_js_wasm_exec
 # program and Go's wasm_exec.js. It's never committed.
 DIST := dist
 
+# Each web build's version, used to name the offline cache in sw.js: the
+# git version plus the build time, so every build replaces the last.
+WEB_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)-$(shell date -u +%Y%m%d%H%M%S)
+
 .PHONY: help test test-short test-wasm cover lint vet fmt build run web serve doc clean
 
 help: ## List the available targets
@@ -59,6 +63,7 @@ web: ## Build the browser version into dist/
 	mkdir -p $(DIST)
 	cp -R web/. $(DIST)/
 	cp "$(shell go env GOROOT)/lib/wasm/wasm_exec.js" $(DIST)/
+	sed -i.bak 's/__VERSION__/$(WEB_VERSION)/' $(DIST)/sw.js && rm $(DIST)/sw.js.bak
 	GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o $(DIST)/codebreaker.wasm ./cmd/web
 	@ls -l $(DIST)/codebreaker.wasm | awk '{printf "codebreaker.wasm: %.1f MB\n", $$5/1048576}'
 

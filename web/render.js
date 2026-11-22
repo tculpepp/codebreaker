@@ -59,13 +59,31 @@ function el(tag, attrs, ...children) {
 
 // Go calls this with each View.
 globalThis.codebreakerRender = function (json) {
+  const previous = view;
   view = JSON.parse(json);
+  // Remember which button had the keyboard focus, so a keyboard player
+  // stays in place after the redraw (each button has a data-key).
+  const focused = document.activeElement && document.activeElement.dataset
+    ? document.activeElement.dataset.key
+    : null;
+
   const screen = SCREENS[view.screen] || drawText;
   // Drawing functions may leave a gap (null) for a part a screen doesn't
   // have, such as a menu; those are skipped.
   app.replaceChildren(...screen(view).filter((part) => part != null));
-  // Put the keyboard focus somewhere useful: the name box, or the first
-  // menu choice, so Enter works at once.
+
+  const heading = view.title || (view.board && view.board.title) || "";
+  document.title = heading ? heading + " · Codebreaker" : "Codebreaker";
+  announce(view, previous);
+
+  // Put the keyboard focus back on the same button if it's still there;
+  // otherwise somewhere useful: the name box, or the first menu choice,
+  // so Enter works at once.
+  const same = focused && app.querySelector(`[data-key="${CSS.escape(focused)}"]`);
+  if (same) {
+    same.focus();
+    return;
+  }
   const focus = app.querySelector("[data-focus]");
   if (focus) {
     focus.focus();
@@ -76,6 +94,32 @@ globalThis.codebreakerRender = function (json) {
     }
   }
 };
+
+// announce tells screen readers what changed, in one short sentence: the
+// new screen's heading and text, or, on the same board, the latest row's
+// result. Redrawing the whole page would otherwise read everything again.
+function announce(v, previous) {
+  const region = document.getElementById("announce");
+  const parts = [];
+  const sameBoard = previous && previous.screen === v.screen && v.board && previous.board &&
+    previous.board.title === v.board.title;
+  const rows = (v.board && v.board.rows) || [];
+  if (sameBoard && rows.length > previous.board.rows.length) {
+    const last = rows[rows.length - 1];
+    const count = (k) => last.feedback.filter((f) => f === k).length;
+    parts.push(`Row ${last.row}: ${last.guess.map((p) => p.name).join(", ")}. ` +
+      `${count("exact")} right spot, ${count("partial")} wrong spot.`);
+  } else if (!sameBoard) {
+    parts.push(v.title || (v.board && v.board.title) || "");
+  }
+  if (!sameBoard || v.message) {
+    parts.push(...(v.lines || []));
+  }
+  if (v.message) {
+    parts.push(v.message);
+  }
+  region.textContent = parts.filter(Boolean).join(" ");
+}
 
 // The drawing function for each screen. Each returns a list of elements.
 const SCREENS = {
@@ -98,8 +142,8 @@ function lines(v) {
 function topbar(title, withQuit) {
   return el("div", { class: "topbar" },
     el("h1", {}, title),
-    el("button", { class: "small", "aria-label": "Help", onclick: () => send({ kind: "help" }) }, "?"),
-    withQuit && el("button", { class: "small", onclick: () => send({ kind: "quit" }) }, "Quit"),
+    el("button", { class: "small", "aria-label": "Help", "data-key": "help", onclick: () => send({ kind: "help" }) }, "?"),
+    withQuit && el("button", { class: "small", "data-key": "quit", onclick: () => send({ kind: "quit" }) }, "Quit"),
   );
 }
 
@@ -113,6 +157,7 @@ function choices(menu) {
       el("button", {
         class: i === 0 ? "primary" : null,
         "data-focus": i === 0,
+        "data-key": "choice-" + i,
         onclick: () => send({ kind: "choose", choice: i }),
       }, label)),
   );
@@ -282,11 +327,12 @@ function palette(v) {
         el("button", {
           class: "peg-" + letter,
           "aria-label": name,
+          "data-key": "color-" + letter,
           onclick: () => send({ kind: "color", letter }),
         }, letter))),
     el("div", { class: "actions" },
-      el("button", { disabled: !v.input.undo, onclick: () => send({ kind: "undo" }) }, "Undo"),
-      el("button", { class: "primary", disabled: !v.input.submit, onclick: () => send({ kind: "submit" }) }, "Submit")));
+      el("button", { "data-key": "undo", disabled: !v.input.undo, onclick: () => send({ kind: "undo" }) }, "Undo"),
+      el("button", { class: "primary", "data-key": "submit", disabled: !v.input.submit, onclick: () => send({ kind: "submit" }) }, "Submit")));
 }
 
 // The keyboard: color letters, Backspace to undo, Enter to submit, ? for
@@ -352,4 +398,42 @@ async function start() {
   }
 }
 
+// watchForUpdates registers the service worker (sw.js), which keeps the
+// game's files for offline play and app installs. When a newer version has
+// been downloaded and is waiting, it shows the "Reload" banner; tapping it
+// tells the new version to take over, and the page reloads with it.
+function watchForUpdates() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  const banner = document.getElementById("update");
+  const offer = (worker) => {
+    banner.hidden = false;
+    document.getElementById("update-reload").onclick = () => worker.postMessage("skipWaiting");
+  };
+  // Reload once, when the new version takes over.
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!reloading) {
+      reloading = true;
+      location.reload();
+    }
+  });
+  navigator.serviceWorker.register("sw.js").then((reg) => {
+    // A first install has no controller yet: nothing to update.
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      offer(reg.waiting);
+    }
+    reg.addEventListener("updatefound", () => {
+      const worker = reg.installing;
+      worker.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) {
+          offer(worker);
+        }
+      });
+    });
+  }).catch((err) => console.warn("codebreaker: offline mode unavailable:", err));
+}
+
+watchForUpdates();
 start();

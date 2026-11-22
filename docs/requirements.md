@@ -1,10 +1,10 @@
 # Codebreaker (Mastermind) - Game Requirements
 
-**Version:** 1.3.0 · **Updated:** 2026-11-22
-**Rules source of truth:** `references/Instructions_-_Code_Breaker_Bilingual.pdf` (the box rules). Where the English and French text differ, the English text governs unless a decision below says otherwise.
+**Version:** 1.4.0 · **Updated:** 2026-11-22
+**Rules source of truth:** `references/Instructions_-_Code_Breaker_Bilingual.pdf` (the box rules). It's the game maker's copyrighted text, so it's kept locally and isn't part of the public repository. Where the English and French text differ, the English text governs unless a decision below says otherwise.
 
 ## Overview
-A terminal-based implementation of Code Breaker (Mastermind-style), with a web version for Chromebooks and other browsers planned for v2.0.0 (see "Web App Requirements"). Two players take turns as Code Maker and Code Breaker. The Breaker deduces a hidden 5-color code from feedback; points are scored on a 30-hole track, and the first player to reach 30 wins.
+An implementation of Code Breaker (Mastermind-style) for the terminal, with a web version for Chromebooks and other browsers, added in v2.0.0 (see "Web App Requirements"). Two players take turns as Code Maker and Code Breaker. The Breaker deduces a hidden 5-color code from feedback; points are scored on a 30-hole track, and the first player to reach 30 wins.
 
 ## Decisions Log
 
@@ -144,7 +144,7 @@ One round (D13). Roles are picked in the menu, or by coin flip. The round follow
    - Friendly messages for invalid letters, wrong length, and repeated colors
    - A quit command (`q`) works at any prompt and shows the current standings
 
-## Web App Requirements (v2.0.0, proposed)
+## Web App Requirements (v2.0.0)
 
 The rules, scoring, modes, difficulty and computer player are the same as above. Only the way the game is shown and played changes.
 
@@ -185,6 +185,7 @@ The rules, scoring, modes, difficulty and computer player are the same as above.
 None. The web version's questions are resolved as D23–D25.
 
 ## Changelog
+- **1.4.0** (2026-11-22): The web version shipped in v2.0.0; its requirements are no longer marked proposed. Noted that the box rules PDF isn't published. Licensed under MIT.
 - **1.3.0** (2026-11-22): The web version's open questions resolved as D23–D25: Go sends Views and JavaScript draws them, GitHub Pages from a public repository, and the name and icon.
 - **1.2.0** (2026-11-22): Recorded the Easy difficulty, added in v1.1.0, as D18 (amends D9). Added the web version: D19–D22, the Web App Requirements, and open questions for it.
 - **1.1.0** (2026-11-21): Added the learning-tool commenting requirement.

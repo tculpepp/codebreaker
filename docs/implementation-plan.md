@@ -403,4 +403,4 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 - Give the module a full path (such as `github.com/<user>/codebreaker`) so it can be installed with `go install`.
 - A stronger computer Code Breaker (Knuth's minimax), or the box's advanced options (duplicate colors and blanks, D12).
 
-**Next: v2.0.0, a web app.** An installable web app (PWA) for Chromebooks, built alongside the terminal version and sharing its rules code, is planned in [web-plan.md](web-plan.md) (requirements D19–D22). Milestones v1.2.0–v2.0.0 are listed there.
+**v2.0.0, a web app (done).** An installable web app (PWA) for Chromebooks, built alongside the terminal version and sharing its rules code, is planned in [web-plan.md](web-plan.md) (requirements D19–D22). Milestones v1.2.0–v2.0.0 are listed there, with their status. The repository is published at https://github.com/tculpepp/codebreaker (MIT), the module path is `github.com/tculpepp/codebreaker`, and CI runs there.

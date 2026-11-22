@@ -1,28 +1,34 @@
 # Codebreaker
 
-A terminal version of the Code Breaker board game, written in Go. Two players take turns: one makes a secret code of 5 different colors, the other tries to break it in 12 guesses or fewer. The breaker scores more for solving in fewer rows, and the first player to reach 30 points wins.
+The Code Breaker board game, written in Go, for the terminal and the browser. Two players take turns: one makes a secret code of 5 different colors, the other tries to break it in 12 guesses or fewer. The breaker scores more for solving in fewer rows, and the first player to reach 30 points wins.
 
-Play against the computer or against another person at the same keyboard. It works in any terminal on Linux, macOS and Windows, with color where the terminal supports it.
+Play against the computer or against another person on the same keyboard or device. The terminal version works in any terminal on Linux, macOS and Windows; the browser version installs as an app on a Chromebook (or any computer with Chrome or Edge) and plays offline.
 
-## Build and run
+## Play in the browser
 
-Requires Go 1.24 or later.
+**https://tculpepp.github.io/codebreaker/**
+
+Tap the colors (or type their letters), then Submit (or press Enter). Everything runs on your device: there are no accounts, and nothing is sent anywhere.
+
+**Install it on a Chromebook:** open the link in Chrome, then choose **Install** in the address bar (or ⋮ menu → Cast, save and share → Install page as app). Codebreaker then has its own icon in the launcher and its own window, and works without an internet connection. When a new version is published, the game offers **Reload** to switch to it.
+
+To try a local build, `make serve` builds `dist/` and serves it at http://localhost:8080.
+
+## Play in the terminal
+
+Install it with Go 1.24 or later:
+
+```sh
+go install github.com/tculpepp/codebreaker/cmd/codebreaker@latest
+codebreaker -h               # list the flags
+```
+
+Or from a clone of this repository:
 
 ```sh
 make run                     # build and play
 make build                   # build bin/codebreaker
-./bin/codebreaker -h         # list the flags
 ```
-
-## Play in the browser (in progress)
-
-A browser version is being built alongside the terminal one, aiming at an installable app for Chromebooks ([web plan](docs/web-plan.md)). So far it plays a Single game, breaking the computer's code. To try it:
-
-```sh
-make serve        # builds dist/ and serves it at http://localhost:8080
-```
-
-Tap the colors (or type their letters), then Submit (or press Enter).
 
 ## How to play
 
@@ -49,7 +55,7 @@ Tap the colors (or type their letters), then Submit (or press Enter).
 
 **At any prompt:** type `?` for help or `q` to quit (the scores so far are shown). Ctrl-C also stops the game cleanly.
 
-The full rules, and the reasons behind each decision, are in [docs/requirements.md](docs/requirements.md).
+The full rules, and the reasons behind each decision, are in [docs/requirements.md](docs/requirements.md). The game follows the rules printed in the Code Breaker box, which aren't included here because they're the game maker's text.
 
 ## Flags
 
@@ -89,6 +95,8 @@ The screens are tested against **golden files** (`internal/ui/testdata`, `intern
 go test ./internal/ui ./internal/app -update
 git diff internal/*/testdata
 ```
+
+The browser version is published to GitHub Pages by `.github/workflows/pages.yml` whenever a `v*` tag is pushed.
 
 CI (`.github/workflows/ci.yml`) runs the tests on Linux, macOS and Windows with Go 1.24 and the latest Go, runs the web version's packages as WebAssembly, and checks formatting and staticcheck.
 
@@ -161,4 +169,8 @@ grep -rn "Go note:" internal/ cmd/
 
 - [Requirements](docs/requirements.md): the game rules and the decisions behind them
 - [Implementation plan](docs/implementation-plan.md): architecture, milestones, testing, and how the code ended up differing from the plan
-- [Web app plan](docs/web-plan.md): the planned v2.0.0 browser and Chromebook version
+- [Web app plan](docs/web-plan.md): the browser and Chromebook version, how it's built, and how it was checked
+
+## License
+
+[MIT](LICENSE)

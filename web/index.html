@@ -9,13 +9,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Break the secret code: 5 different colors, chosen from 8. Play the computer or a friend.">
+  <meta name="theme-color" content="#1d1d24">
   <title>Codebreaker</title>
+  <!-- The app's name, icons and colors, for installing it (manifest.webmanifest). -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main id="app" aria-live="polite">
+  <main id="app">
     <p class="status">Loading…</p>
   </main>
+  <!-- Read aloud by screen readers after each change (see announce in render.js). -->
+  <p id="announce" class="visually-hidden" aria-live="polite"></p>
+  <!-- Shown when a new version has been downloaded (see sw.js). -->
+  <div id="update" class="update" hidden>
+    <span>A new version of Codebreaker is ready.</span>
+    <button type="button" class="primary small" id="update-reload">Reload</button>
+  </div>
   <noscript><p class="status">Codebreaker needs JavaScript turned on.</p></noscript>
   <!-- wasm_exec.js comes with Go and must match the Go version that built
        codebreaker.wasm, so `make web` copies it in fresh on every build. -->
