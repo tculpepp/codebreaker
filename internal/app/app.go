@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"math/rand/v2"
 
@@ -34,8 +35,9 @@ const (
 )
 
 // Run plays Codebreaker, reading the player's answers from in and drawing
-// on out, until the player quits. seed fixes the computer's choices, so
-// the same seed and the same answers always give the same game.
+// on out, until the player quits. seed fixes every random choice (the
+// coin flip and the computer's codes and guesses), so the same seed and
+// the same answers always give the same game.
 //
 // It returns nil when the player quits or the input ends, the context
 // error after Ctrl-C (ctx cancelled), or any other failure. Pass the
@@ -77,7 +79,8 @@ func newRNG(seed uint64) *rand.Rand {
 // tests can call it. The exported Run stays simple for main, while tests
 // get full control. Splitting it this way is a common Go pattern.
 func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand) error {
-	err := play(ctx, p, r, rng)
+	s := &session{p: p, r: r, rng: rng}
+	err := s.play(ctx)
 	if errors.Is(err, input.ErrQuit) || errors.Is(err, io.EOF) {
 		err = nil
 	}
@@ -87,85 +90,213 @@ func run(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand) 
 	return err
 }
 
-// play runs the session: welcome, ask for a name, then play Single games
-// until the player declines another. It returns nil only when the player
-// chooses Quit in the menu; otherwise it returns whatever stopped it.
-func play(ctx context.Context, p input.Prompter, r *ui.Renderer, rng *rand.Rand) error {
-	r.Welcome()
-	name, err := askName(ctx, p, r)
-	if err != nil {
-		return err
+// state is one screen of the app's flow (implementation-plan.md §5):
+//
+//	stateName ──▶ stateMainMenu ──Match───────────────▶ statePlay
+//	                   │  ▲      └─Single─▶ stateChooseRole ──▶ statePlay
+//	                   │  └────New game── statePlayAgain ◀───────────┘
+//	                   └──Quit──▶ stateDone ◀──Quit──┘
+//
+// Go note: this is a "state machine". Each state has its own step method
+// that does one screen's work and returns the next state. The main loop
+// in play just calls step until stateDone. Compared with nested loops, each
+// screen is small, the possible moves are easy to see, and each step can
+// be tested on its own.
+type state int
+
+// The app's states, in the order a player usually meets them.
+const (
+	stateName       state = iota // ask the player's name
+	stateMainMenu                // choose Match, Single game or Quit
+	stateChooseRole              // Single game only: Maker, Breaker or coin flip
+	statePlay                    // show the line-up, confirm, and play
+	statePlayAgain               // offer another game
+	stateDone                    // leave the app
+)
+
+// session holds what the steps share: the input and screen, the random
+// generator, and the choices made so far.
+type session struct {
+	p    input.Prompter
+	r    *ui.Renderer
+	rng  *rand.Rand
+	name string      // the human player's name
+	cfg  game.Config // the game chosen in the menus
+}
+
+// play runs the state machine from the welcome screen until stateDone or
+// an error. Quitting shows up as an error (input.ErrQuit or io.EOF), which
+// run treats as a normal finish.
+func (s *session) play(ctx context.Context) error {
+	s.r.Welcome()
+	st := stateName
+	for st != stateDone {
+		var err error
+		if st, err = s.step(ctx, st); err != nil {
+			return err
+		}
 	}
-	for {
-		if err := singleGame(ctx, name, p, r, rng); err != nil {
-			return err
-		}
-		again, err := askPlayAgain(ctx, p, r)
-		if err != nil || !again {
-			return err
-		}
+	return nil
+}
+
+// step runs one state and returns the next. An unknown state is a bug, so
+// it's reported rather than ignored.
+func (s *session) step(ctx context.Context, st state) (state, error) {
+	switch st {
+	case stateName:
+		return s.askName(ctx)
+	case stateMainMenu:
+		return s.mainMenu(ctx)
+	case stateChooseRole:
+		return s.chooseRole(ctx)
+	case statePlay:
+		return s.playGame(ctx)
+	case statePlayAgain:
+		return s.playAgain(ctx)
+	default:
+		return stateDone, fmt.Errorf("app: unknown state %d", st)
 	}
 }
 
 // askName asks for the player's name. Pressing Enter gives defaultName.
-func askName(ctx context.Context, p input.Prompter, r *ui.Renderer) (string, error) {
+func (s *session) askName(ctx context.Context) (state, error) {
 	for {
-		name, err := p.Line(ctx, " Your name (Enter for "+defaultName+") ▸ ")
+		name, err := s.p.Line(ctx, " Your name (Enter for "+defaultName+") ▸ ")
 		if errors.Is(err, input.ErrHelp) {
-			r.Help()
+			s.r.Help()
 			continue
 		}
 		if err != nil {
-			return "", err
+			return stateDone, err
 		}
 		if name == "" {
 			name = defaultName
 		}
-		return name, nil
+		s.name = name
+		return stateMainMenu, nil
 	}
 }
 
-// singleGame plays one Single game: the computer makes a code and the
-// human tries to break it. The renderer, as the match's Observer, draws
-// everything as it happens.
-func singleGame(ctx context.Context, name string, p input.Prompter, r *ui.Renderer, rng *rand.Rand) error {
-	seats := [2]game.Seat{
-		{Name: name, Peg: game.PegBlue, Player: player.NewHuman(p, r)},
-		{Name: computerName, Peg: game.PegRed, Player: player.NewComputer(rng)},
+// mainMenu offers a match, a Single game, or quitting. Playing against
+// another person arrives in v0.5.0.
+func (s *session) mainMenu(ctx context.Context) (state, error) {
+	choice, err := s.choose(ctx, "Main menu", []string{
+		fmt.Sprintf("Match against the computer (first to %d points)", game.TargetScore),
+		"Single game against the computer",
+		"Quit",
+	})
+	switch {
+	case err != nil:
+		return stateDone, err
+	case choice == 0:
+		// The zero Config is a full match with a coin flip (D6).
+		s.cfg = game.Config{}
+		return statePlay, nil
+	case choice == 1:
+		return stateChooseRole, nil
+	default:
+		return stateDone, nil
 	}
-	// The computer always makes the code in this version (it can't break
-	// codes until v0.4.0), so seat 1 is the first and only Maker.
-	cfg := game.Config{Mode: game.ModeSingle, FirstMaker: game.FirstMakerSeat1}
+}
 
-	// NewMatch only fails on a bad setup, and this setup is fixed, so an
-	// error here would be a bug. It's still passed up rather than ignored.
-	m, err := game.NewMatch(cfg, seats, rng, r)
-	if err == nil {
-		_, err = m.Play(ctx)
+// chooseRole asks which role the human takes in a Single game (D13). The
+// human always sits in seat 0 and the computer in seat 1.
+func (s *session) chooseRole(ctx context.Context) (state, error) {
+	choice, err := s.choose(ctx, "Single game: which role?", []string{
+		"Break the computer's code",
+		"Make a code for the computer to break",
+		"Flip a coin",
+	})
+	if err != nil {
+		return stateDone, err
 	}
+	// Go note: an array literal with indexes, like the one below, works as
+	// a small lookup table from a menu choice to a value. choice is always
+	// 0, 1 or 2 here, because choose only returns listed choices.
+	firstMaker := [...]game.FirstMaker{
+		0: game.FirstMakerSeat1, // the computer makes, so the human breaks
+		1: game.FirstMakerSeat0, // the human makes
+		2: game.FirstMakerCoinFlip,
+	}[choice]
+	s.cfg = game.Config{Mode: game.ModeSingle, FirstMaker: firstMaker}
+	return statePlay, nil
+}
+
+// playGame seats the players, shows the line-up and the coin flip, waits
+// for the player to start, and plays the game chosen in the menus. The
+// renderer, as the match's Observer, draws everything as it happens.
+func (s *session) playGame(ctx context.Context) (state, error) {
+	seats := [2]game.Seat{
+		{Name: s.name, Peg: game.PegBlue, Player: player.NewHuman(s.p, s.r)},
+		{Name: computerName, Peg: game.PegRed, Player: player.NewComputer(s.rng)},
+	}
+	// NewMatch only fails on a bad setup, and the menus can't produce one,
+	// so an error here would be a bug. It's still passed up, not ignored.
+	m, err := game.NewMatch(s.cfg, seats, s.rng, s.r)
+	if err == nil {
+		err = s.startAndPlay(ctx, m)
+	}
+	if err != nil {
+		return stateDone, err
+	}
+	return statePlayAgain, nil
+}
+
+// startAndPlay shows who plays and who makes the first code, asks the
+// player to press Enter (requirements.md: "Confirm the start and show the
+// coin-flip result"), then plays the match to the end.
+func (s *session) startAndPlay(ctx context.Context, m *game.Match) error {
+	coinFlip := s.cfg.FirstMaker == game.FirstMakerCoinFlip
+	s.r.Setup(s.cfg.Mode, m.Seats(), m.MakerIdx(), coinFlip)
+	for {
+		_, err := s.p.Line(ctx, " Press Enter to start ▸ ")
+		if errors.Is(err, input.ErrHelp) {
+			s.r.Help()
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		break
+	}
+	_, err := m.Play(ctx)
 	return err
 }
 
-// askPlayAgain shows the play-again menu and reports whether the player
-// chose another game.
-func askPlayAgain(ctx context.Context, p input.Prompter, r *ui.Renderer) (bool, error) {
-	choices := []string{"New game", "Quit"}
-	r.Menu("Play again?", choices)
+// playAgain offers another game, which goes back to the main menu.
+func (s *session) playAgain(ctx context.Context) (state, error) {
+	choice, err := s.choose(ctx, "Play again?", []string{"New game", "Quit"})
+	switch {
+	case err != nil:
+		return stateDone, err
+	case choice == 0:
+		return stateMainMenu, nil
+	default:
+		return stateDone, nil
+	}
+}
+
+// choose shows a menu and returns the 0-based index of the choice made. A
+// bad answer is explained and asked again; help is shown followed by the
+// menu again, so the choices stay in view.
+func (s *session) choose(ctx context.Context, title string, choices []string) (int, error) {
+	s.r.Menu(title, choices)
+	prompt := fmt.Sprintf(" Choose 1–%d ▸ ", len(choices))
 	for {
-		line, err := p.Line(ctx, " Choose 1–2 ▸ ")
+		line, err := s.p.Line(ctx, prompt)
 		if errors.Is(err, input.ErrHelp) {
-			r.Help()
-			r.Menu("Play again?", choices)
+			s.r.Help()
+			s.r.Menu(title, choices)
 			continue
 		}
 		if err != nil {
-			return false, err
+			return 0, err
 		}
 		choice, err := ui.ParseChoice(line, len(choices))
 		if err != nil {
-			r.Error(err)
+			s.r.Error(err)
 			continue
 		}
-		return choice == 0, nil
+		return choice, nil
 	}
 }

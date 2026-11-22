@@ -43,17 +43,25 @@ func checkGolden(t *testing.T, name, got string) {
 	}
 }
 
-// secrets returns the first n codes the computer will pick with this seed.
-// The app's generator is used only for the computer's codes in this
-// version (the computer always makes the code, so there's no coin flip),
-// so a second generator with the same seed predicts them.
-func secrets(seed uint64, n int) []code.Code {
-	rng := newRNG(seed)
-	out := make([]code.Code, n)
-	for i := range out {
-		out[i] = code.Random(rng)
-	}
-	return out
+// Scripted answers for the menus, named so the scripts below read as
+// choices rather than bare numbers.
+const (
+	menuMatch  = "1" // main menu: Match against the computer
+	menuSingle = "2" // main menu: Single game against the computer
+	menuQuit   = "3" // main menu: Quit
+	roleBreak  = "1" // role menu: break the computer's code
+	roleMake   = "2" // role menu: make a code for the computer
+	roleFlip   = "3" // role menu: flip a coin
+	start      = ""  // "Press Enter to start"
+	againNew   = "1" // play-again menu: New game
+	againQuit  = "2" // play-again menu: Quit
+)
+
+// firstSecret returns the code the computer makes first, in a game where
+// no coin is flipped. The app's generator is used first for that code, so
+// a second generator with the same seed predicts it.
+func firstSecret(seed uint64) code.Code {
+	return code.Random(newRNG(seed))
 }
 
 // wrongGuess returns a valid code that isn't secret.
@@ -64,34 +72,109 @@ func wrongGuess(secret code.Code) string {
 	return "RGYBK"
 }
 
-// session runs the app with scripted input and returns everything it
+// script runs the app with scripted input and returns everything it
 // wrote, transcript style (prompts followed by the "typed" answers).
-func session(t *testing.T, ctx context.Context, seed uint64, lines ...string) (string, error) {
+func script(t *testing.T, ctx context.Context, seed uint64, lines ...string) (string, error) {
 	t.Helper()
 	var out strings.Builder
 	err := run(ctx, input.NewScripted(&out, lines...), ui.NewRenderer(&out), newRNG(seed))
 	return out.String(), err
 }
 
-// TestTranscript plays a whole session and compares it with a saved
-// transcript. Tom asks for help, makes a typing mistake, a wrong guess and
-// a repeat of it (neither mistake uses a row), solves the code on row 2,
-// chooses to play again, then quits in the middle of the second game.
-func TestTranscript(t *testing.T) {
-	s := secrets(1, 1)
-	wrong := wrongGuess(s[0])
-	out, err := session(t, context.Background(), 1,
-		"Tom", "?", "rrr", wrong, wrong, s[0].String(), "5", "1", "q")
+// TestSingleTranscript plays a Single game and compares it with a saved
+// transcript. Tom asks for help, picks a Single game breaking the
+// computer's code, makes a typing mistake, a wrong guess and a repeat of
+// it (neither mistake uses a row), solves on row 2, mistypes the
+// play-again choice, goes back to the main menu and quits.
+func TestSingleTranscript(t *testing.T) {
+	s := firstSecret(1).String()
+	wrong := wrongGuess(firstSecret(1))
+	out, err := script(t, context.Background(), 1,
+		"Tom", "?", menuSingle, roleBreak, start,
+		"rrr", wrong, wrong, s, "5", againNew, menuQuit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	checkGolden(t, "transcript", out)
+	checkGolden(t, "single_transcript", out)
+}
+
+// seedComputerMakesFirst finds a seed whose coin flip makes the computer
+// (seat 2) the first Code Maker. The coin flip is the first use of the
+// app's generator in a match, so the test can check it in advance.
+func seedComputerMakesFirst(t *testing.T) uint64 {
+	t.Helper()
+	for seed := range uint64(100) {
+		if newRNG(seed).IntN(2) == 1 {
+			return seed
+		}
+	}
+	t.Fatal("no seed found")
+	return 0
+}
+
+// TestMatchTranscript plays the first two rounds of a match and then
+// quits, compared with a saved transcript. Round 1: the coin flip makes
+// the computer the Maker and Tom solves its code. Round 2: roles swap, Tom
+// makes a code and the computer breaks it. Round 3 starts with roles
+// swapped back, and Tom quits, which shows the standings (D16).
+func TestMatchTranscript(t *testing.T) {
+	seed := seedComputerMakesFirst(t)
+	rng := newRNG(seed)
+	rng.IntN(2) // the coin flip
+	secret := code.Random(rng)
+
+	out, err := script(t, context.Background(), seed,
+		"Tom", menuMatch, start, secret.String(), "opygb", "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"Coin flip: Computer makes the first code.",
+		"Tom scores",
+		"Computer cracked the code",
+		"Computer scores",
+		"CODEBREAKER · Match · Round 3",
+		"Match stopped after 2 rounds.",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("transcript is missing %q", want)
+		}
+	}
+	checkGolden(t, "match_transcript", out)
+}
+
+// TestSingleAsMaker checks the other Single-game role: Tom makes the code
+// and the computer breaks it.
+func TestSingleAsMaker(t *testing.T) {
+	out, err := script(t, context.Background(), 1,
+		"Tom", menuSingle, roleMake, start, "rgybk", againQuit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Tom makes the code.", "Maker: Blue Tom · Breaker: Red Computer", "Computer cracked the code"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestSingleCoinFlip checks that choosing the coin flip says who it
+// picked. Either result is fine; quitting at the first prompt works for
+// both roles.
+func TestSingleCoinFlip(t *testing.T) {
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, roleFlip, start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "Coin flip: ") {
+		t.Errorf("coin flip result not shown:\n%s", out)
+	}
 }
 
 // TestDefaultName checks that pressing Enter at the name prompt plays as
 // "Player".
 func TestDefaultName(t *testing.T) {
-	out, err := session(t, context.Background(), 1, "", "q")
+	out, err := script(t, context.Background(), 1, "", menuSingle, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +186,7 @@ func TestDefaultName(t *testing.T) {
 // TestHelpAtNamePrompt checks that help works at the very first prompt,
 // and that the question is asked again afterwards.
 func TestHelpAtNamePrompt(t *testing.T) {
-	out, err := session(t, context.Background(), 1, "?", "Ann", "q")
+	out, err := script(t, context.Background(), 1, "?", "Ann", menuSingle, roleBreak, start, "q")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,26 +198,43 @@ func TestHelpAtNamePrompt(t *testing.T) {
 	}
 }
 
+// TestHelpAtStartPrompt checks that help works at "Press Enter to start",
+// and that the question is asked again.
+func TestHelpAtStartPrompt(t *testing.T) {
+	out, err := script(t, context.Background(), 1, "Tom", menuSingle, roleBreak, "?", start, "q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "How to play") || strings.Count(out, "Press Enter to start") != 2 {
+		t.Errorf("help not shown, or start not asked again:\n%s", out)
+	}
+}
+
 // TestQuitting checks every normal way to leave: q or the end of input at
-// any prompt, or choosing Quit in the menu. Each one is a normal finish
+// any prompt, or choosing Quit in a menu. Each one is a normal finish
 // (nil error, exit code 0) that says goodbye (D16).
 func TestQuitting(t *testing.T) {
-	s := secrets(1, 1)[0].String()
+	s := firstSecret(1).String()
+	single := []string{"Tom", menuSingle, roleBreak, start}
 	tests := []struct {
 		name  string
 		lines []string
 	}{
 		{name: "q at name", lines: []string{"q"}},
 		{name: "input ends at name", lines: nil},
-		{name: "q mid-round", lines: []string{"Tom", "q"}},
-		{name: "input ends mid-round", lines: []string{"Tom"}},
-		{name: "quit from menu", lines: []string{"Tom", s, "2"}},
-		{name: "q at menu", lines: []string{"Tom", s, "q"}},
-		{name: "input ends at menu", lines: []string{"Tom", s}},
+		{name: "quit from main menu", lines: []string{"Tom", menuQuit}},
+		{name: "q at main menu", lines: []string{"Tom", "q"}},
+		{name: "q at role menu", lines: []string{"Tom", menuSingle, "q"}},
+		{name: "q at start", lines: []string{"Tom", menuSingle, roleBreak, "q"}},
+		{name: "q mid-round", lines: append(single, "q")},
+		{name: "input ends mid-round", lines: single},
+		{name: "quit from play-again", lines: append(single, s, againQuit)},
+		{name: "q at play-again", lines: append(single, s, "q")},
+		{name: "input ends at play-again", lines: append(single, s)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out, err := session(t, context.Background(), 1, tt.lines...)
+			out, err := script(t, context.Background(), 1, tt.lines...)
 			if err != nil {
 				t.Fatalf("run error = %v, want nil", err)
 			}
@@ -148,16 +248,24 @@ func TestQuitting(t *testing.T) {
 // TestMenuMistakesAndHelp checks that a bad menu answer is explained and
 // asked again, and that help redraws the menu so the choices are visible.
 func TestMenuMistakesAndHelp(t *testing.T) {
-	s := secrets(1, 1)[0].String()
-	out, err := session(t, context.Background(), 1, "Tom", s, "9", "?", "2")
+	out, err := script(t, context.Background(), 1, "Tom", "9", "?", menuQuit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "Please type a number from 1 to 2.") {
+	if !strings.Contains(out, "Please type a number from 1 to 3.") {
 		t.Errorf("bad choice not explained:\n%s", out)
 	}
-	if got := strings.Count(out, "Play again?"); got != 2 {
+	if got := strings.Count(out, "Main menu"); got != 2 {
 		t.Errorf("menu drawn %d times, want 2 (again after help)", got)
+	}
+}
+
+// TestUnknownState checks the state machine's safety net: a state with no
+// step function is reported as an error instead of looping forever.
+func TestUnknownState(t *testing.T) {
+	s := &session{}
+	if _, err := s.step(context.Background(), state(99)); err == nil {
+		t.Error("step(99) error = nil, want an error")
 	}
 }
 
@@ -190,7 +298,9 @@ func TestCtrlC(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var out strings.Builder
-	p := &cancelOnCall{Prompter: input.NewScripted(&out, "Tom", "RGYBK"), n: 2, cancel: cancel}
+	// Questions: name, main menu, role, start, then the first guess (5th).
+	lines := input.NewScripted(&out, "Tom", menuSingle, roleBreak, start, "RGYBK")
+	p := &cancelOnCall{Prompter: lines, n: 5, cancel: cancel}
 
 	err := run(ctx, p, ui.NewRenderer(&out), newRNG(1))
 	if !errors.Is(err, context.Canceled) {

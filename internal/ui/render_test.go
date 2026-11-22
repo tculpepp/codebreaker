@@ -222,3 +222,27 @@ func TestRendererIsAnObserver(t *testing.T) {
 	var obs game.Observer = NewRenderer(&strings.Builder{})
 	_ = obs
 }
+
+// TestSetup checks the screen shown before play starts: who is playing,
+// what wins, and who makes the first code, saying so when a coin flip
+// decided it (requirements.md "Menu System": show the coin-flip result).
+func TestSetup(t *testing.T) {
+	seats := [2]game.Seat{tom, computer}
+	tests := []struct {
+		name     string
+		mode     game.Mode
+		makerIdx int
+		coinFlip bool
+	}{
+		{name: "setup_match_coin_flip", mode: game.ModeMatch, makerIdx: 1, coinFlip: true},
+		{name: "setup_single_chosen", mode: game.ModeSingle, makerIdx: 0},
+		{name: "setup_single_coin_flip", mode: game.ModeSingle, makerIdx: 0, coinFlip: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, out := newTestRenderer()
+			r.Setup(tt.mode, seats, tt.makerIdx, tt.coinFlip)
+			checkGolden(t, tt.name, out.String())
+		})
+	}
+}

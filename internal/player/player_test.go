@@ -5,12 +5,14 @@ import (
 	"errors"
 	"io"
 	"math/rand/v2"
+	"slices"
 	"strings"
 	"testing"
 
 	"codebreaker/internal/code"
 	"codebreaker/internal/game"
 	"codebreaker/internal/input"
+	"codebreaker/internal/solver"
 )
 
 // seeded returns a random generator with a fixed seed, for reproducible
@@ -200,13 +202,126 @@ func TestComputerMakeSecret(t *testing.T) {
 	}
 }
 
-// TestComputerCannotGuessYet records a known gap: the computer learns to
-// break codes in v0.4.0. Until then Guess fails clearly instead of
-// guessing nonsense.
-func TestComputerCannotGuessYet(t *testing.T) {
-	_, err := NewComputer(seeded(1)).Guess(context.Background(), info, nil)
-	if !errors.Is(err, ErrCannotBreak) {
-		t.Errorf("Guess error = %v, want ErrCannotBreak", err)
+// TestComputerGuessFitsFeedback checks the computer as Code Breaker: its
+// first guess is the solver's opening, and every later guess could still
+// be the secret given all the feedback in history. It only ever sees
+// history, never the secret.
+func TestComputerGuessFitsFeedback(t *testing.T) {
+	secret := mustParse(t, "OPYGB")
+	c := NewComputer(seeded(5))
+	var history []game.Turn
+	for row := 1; row <= game.MaxRows; row++ {
+		g, err := c.Guess(context.Background(), info, history)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, past := range history {
+			if code.Score(g, past.Guess) != past.Feedback {
+				t.Fatalf("row %d guess %v contradicts row %d", row, g, past.Row)
+			}
+		}
+		fb := code.Score(secret, g)
+		history = append(history, game.Turn{Row: row, Guess: g, Feedback: fb})
+		if fb.Solved() {
+			return
+		}
+	}
+	t.Fatalf("not solved in %d rows: %v", game.MaxRows, history)
+}
+
+// TestComputerStartsFreshEachRound checks that the computer forgets the
+// last round when a new one starts (an empty history), and that it rebuilds
+// its knowledge if handed a history it hasn't followed. Either way its
+// guesses must fit the history it was given.
+func TestComputerStartsFreshEachRound(t *testing.T) {
+	c := NewComputer(seeded(9))
+	first, _ := c.Guess(context.Background(), info, nil)
+
+	// Round 1: one guess with 3 right colors, all in the wrong spots.
+	// (A guess can't share fewer than 2 colors with the secret: 5 + 5
+	// colors out of 8 must overlap by at least 2.)
+	turn := game.Turn{Row: 1, Guess: first, Feedback: code.Feedback{Partial: 3}}
+	if _, err := c.Guess(context.Background(), info, []game.Turn{turn}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Round 2: an empty history means a new round, so the opening again.
+	again, _ := c.Guess(context.Background(), info, nil)
+	if again != first {
+		t.Errorf("new round opened with %v, want %v", again, first)
+	}
+
+	// A different history than the one followed so far: the guess must
+	// fit it, not the old feedback.
+	other := game.Turn{Row: 1, Guess: first, Feedback: code.Feedback{Exact: 2, Partial: 2}}
+	fresh := NewComputer(seeded(9))
+	_, _ = fresh.Guess(context.Background(), info, []game.Turn{turn, turn}) // follows 2 rows
+	g, err := fresh.Guess(context.Background(), info, []game.Turn{other})   // then only 1
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code.Score(g, first) != other.Feedback {
+		t.Errorf("guess %v doesn't fit the history it was given", g)
+	}
+}
+
+// TestComputerGuessReportsImpossibleFeedback checks that feedback no code
+// could produce comes back as the solver's error rather than a nonsense
+// guess. The game computes feedback itself, so this only guards against
+// bugs.
+func TestComputerGuessReportsImpossibleFeedback(t *testing.T) {
+	c := NewComputer(seeded(1))
+	bad := game.Turn{Row: 1, Guess: mustParse(t, "RGYBK"), Feedback: code.Feedback{Exact: 4, Partial: 1}}
+	if _, err := c.Guess(context.Background(), info, []game.Turn{bad}); !errors.Is(err, solver.ErrNoCandidates) {
+		t.Errorf("Guess error = %v, want solver.ErrNoCandidates", err)
+	}
+}
+
+// TestComputerVsComputer plays full matches between two computers, which
+// the menu doesn't offer but tests and demos use (D17). Every match must
+// end with exactly one player at 30 or more, every round must be solved
+// within 12 rows, and the same seed must replay the same match.
+func TestComputerVsComputer(t *testing.T) {
+	play := func(seed uint64) game.Standings {
+		rng := seeded(seed)
+		seats := [2]game.Seat{
+			{Name: "Deep", Peg: game.PegBlue, Player: NewComputer(rng)},
+			{Name: "Blue", Peg: game.PegRed, Player: NewComputer(rng)},
+		}
+		m, err := game.NewMatch(game.Config{}, seats, rng, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		st, err := m.Play(context.Background())
+		if err != nil {
+			t.Fatalf("seed %d: %v", seed, err)
+		}
+		return st
+	}
+
+	for seed := range uint64(30) {
+		st := play(seed)
+		if st.Winner < 0 {
+			t.Fatalf("seed %d: no winner: %+v", seed, st)
+		}
+		winner, loser := st.Seats[st.Winner], st.Seats[1-st.Winner]
+		if winner.Score < game.TargetScore || loser.Score >= game.TargetScore {
+			t.Errorf("seed %d: scores %d and %d, want exactly one at %d or more",
+				seed, winner.Score, loser.Score, game.TargetScore)
+		}
+		for _, r := range st.Results {
+			if !r.Solved {
+				t.Errorf("seed %d: round %d not solved in %d rows", seed, r.Number, r.Rows)
+			}
+		}
+	}
+
+	// Seats hold different Player pointers in each run, so compare the
+	// scores and the round results instead.
+	a, b := play(99), play(99)
+	if a.Seats[0].Score != b.Seats[0].Score || a.Seats[1].Score != b.Seats[1].Score ||
+		!slices.Equal(a.Results, b.Results) {
+		t.Errorf("same seed, different matches:\n%+v\n%+v", a, b)
 	}
 }
 

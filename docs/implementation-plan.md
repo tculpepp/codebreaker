@@ -349,13 +349,13 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 | ✅ v0.1.0 | Scaffold (`go.mod`, Makefile, staticcheck.conf, `.gitignore`, README stub) and the `code` package, fully commented with `Go note:`s |
 | ✅ v0.2.0 | `game`: Round, `Points`, `CheckRepeat`, Match (Single + to-30), coin flip |
 | ✅ v0.3.0 | `input`, plain UI, Human player, Computer as Maker. **First playable version: Single game, a human breaks the computer's code.** |
-| v0.4.0 | Solver, Computer as Breaker, **full Match mode against the computer** |
+| ✅ v0.4.0 | Solver, Computer as Breaker, **full Match mode against the computer** |
 | v0.5.0 | Human vs Human: hidden input and handoff |
 | v1.0.0 | Colors, Windows support, `-ascii`, flags, help, README (including the "learning Go" guide and concept map), CI on 3 OSes |
 
 ## 10. Status and next step
 
-**Done:** v0.1.0 (`code`), v0.2.0 (`game`) and v0.3.0 (`input`, `ui`, `player`, `app`, `cmd/codebreaker`) are tagged. Every `internal` package has 100% test coverage and is clean under vet and staticcheck. `cmd/codebreaker` has no tests: `main` only wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit or end of input, and 130 for Ctrl-C.
+**Done:** v0.1.0 (`code`), v0.2.0 (`game`), v0.3.0 (`input`, `ui`, `player`, `app`, `cmd/codebreaker`) and v0.4.0 (`solver`, the computer as Code Breaker, the menu, full matches) are tagged. Every `internal` package has 100% test coverage and is clean under vet and staticcheck. `cmd/codebreaker` has no tests: `main` only wires up Ctrl-C, calls `app.Run` and exits with `app.ExitCode`. Running the binary by hand confirmed exit code 0 for quit or end of input, and 130 for Ctrl-C.
 
 **How `game` differs from the sketches above:**
 - `Config.FirstMaker` is an enum type, and its zero value means a coin flip.
@@ -370,8 +370,15 @@ App versions follow SemVer; commits follow Conventional Commits (AGENTS.md).
 - `player`: `NewHuman(in, screen)` takes a small `Screen` interface (`Error`, `Help`) rather than `*ui.Renderer`, which makes tests simpler. The name lives in `game.Seat`, so `NewHuman` doesn't take one. `Human.MakeSecret` reads the code in plain sight until v0.5.0. `NewComputer(rng)` doesn't take a name either, and `Computer.Guess` returns `ErrCannotBreak` until the solver arrives.
 - `app`: `Run(ctx, in, out, seed)` and `ExitCode(err)`. The flow is simple: welcome, ask for a name, play a Single game, then ask "Play again?". The menu state machine waits until v0.4.0, when choosing a mode and opponent makes it worth having.
 
-**Next: v0.4.0, a full match against the computer.** Build these test-first:
-1. `solver`: `New`, `Next`, `Update` and `Remaining`. Test that it solves all 6720 codes within 12 rows, that the same seed gives the same guesses, that it never repeats a guess, and that contradictory feedback gives `ErrNoCandidates`. The `-short` flag tests a sample of 500.
-2. `player.Computer.Guess`: use the solver, feeding it only the new part of `history`, and start fresh each round. This removes `ErrCannotBreak`.
-3. `app`: a menu state machine for choosing Single or Match and the roles in a Single game. Use the coin flip for the first Maker. The human then also plays as Code Maker, typing the code in plain sight.
-4. A CPU vs CPU match test that must end with someone at 30 or more.
+**How v0.4.0 differs from the sketches above:**
+- `solver`: works as sketched. The fixed opening is RGYBK and is unexported. The test of all 6720 codes found an average of 5.37 rows and a worst case of 8, well within 12.
+- `player.Computer`: starts a fresh solver whenever `history` is empty (a new round), or shorter than the history it has already seen, then passes it only the turns it hasn't seen.
+- `app`: the menu is a state machine: name → main menu (Match, Single, Quit) → role (Single only: break, make, coin flip) → play → play again. Before play, `ui.Renderer.Setup` shows the line-up and the coin-flip result, and a "Press Enter to start" prompt is the confirmation. In a match, a coin flip always decides who makes the first code (D6).
+- CPU vs CPU (D17) is tested in `player` (`TestComputerVsComputer`): 30 seeded matches, each ending with exactly one player at 30 or more, and the same seed replays the same match.
+- Known limitation: when the computer is breaking, the board is drawn again after every one of its guesses, so its rows scroll past quickly. Clearing and redrawing the screen in v1.0.0 fixes this.
+
+**Next: v0.5.0, Human vs Human.** Build these test-first:
+1. `input.Prompter.Secret`: hidden input via `golang.org/x/term` when the input is a terminal (found with a type assertion on `NewTerminal`'s reader), and plain line input otherwise, so scripted tests still work. Restore the terminal with `defer`.
+2. `player.Human.MakeSecret`: in Human vs Human, the secret is typed hidden twice and must match, then `ui.Renderer.Handoff` shows "Pass the keyboard to Bob — press Enter". Against the computer, the secret is still typed plainly.
+3. `ui`: `Handoff` and `Clear`. Clearing works only in a real terminal; when output is piped, a separator line is printed instead.
+4. `app`: a main-menu choice for the opponent (computer or human) and a second name prompt. Assign Blue and Red to the two players.

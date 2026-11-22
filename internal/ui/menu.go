@@ -48,6 +48,31 @@ func (r *Renderer) Menu(title string, choices []string) {
 	r.write(b.String())
 }
 
+// Setup draws the line-up before play starts: who is playing, what wins,
+// and who makes the first code (seats[makerIdx]). When coinFlip is true it
+// says the coin decided, as the box rules have it (D6).
+func (r *Renderer) Setup(mode game.Mode, seats [2]game.Seat, makerIdx int, coinFlip bool) {
+	var b strings.Builder
+	players := seatLabel(seats[0]) + " vs " + seatLabel(seats[1])
+	if mode == game.ModeMatch {
+		fmt.Fprintf(&b, "\n Match: %s. First to %d points wins.\n", players, game.TargetScore)
+	} else {
+		fmt.Fprintf(&b, "\n Single game: %s.\n", players)
+	}
+
+	b.WriteString(" ")
+	if coinFlip {
+		b.WriteString("Coin flip: ")
+	}
+	what := "the code"
+	if mode == game.ModeMatch {
+		what = "the first code" // roles swap after every round
+	}
+	fmt.Fprintf(&b, "%s makes %s.\n", seats[makerIdx].Name, what)
+
+	r.write(b.String())
+}
+
 // Goodbye draws the farewell shown when the player leaves the game.
 func (r *Renderer) Goodbye() {
 	r.write("\n Thanks for playing!\n")

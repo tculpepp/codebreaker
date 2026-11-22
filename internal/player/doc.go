@@ -7,11 +7,9 @@
 // player sits between game and the outside world. A Human gets its answers
 // from an input.Prompter and reports mistakes to a Screen (in the real game,
 // the ui.Renderer). It checks every guess itself, so a typo never costs a
-// row. A Computer uses an injected random generator, so a seeded game plays
-// the same way every time.
-//
-// In this version the Computer can only make codes. It learns to break them
-// in v0.4.0, when package solver arrives.
+// row. A Computer makes random codes and breaks codes with package solver.
+// It uses an injected random generator, so a seeded game plays the same way
+// every time.
 //
 // # Go concepts shown here
 //

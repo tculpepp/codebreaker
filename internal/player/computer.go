@@ -2,20 +2,20 @@ package player
 
 import (
 	"context"
-	"errors"
 	"math/rand/v2"
 
 	"codebreaker/internal/code"
 	"codebreaker/internal/game"
+	"codebreaker/internal/solver"
 )
 
-// ErrCannotBreak is returned by Computer.Guess until the solver arrives in
-// v0.4.0. The app doesn't seat the computer as Code Breaker before then.
-var ErrCannotBreak = errors.New("player: the computer can't break codes yet")
-
-// Computer is a computer-controlled player.
+// Computer is a computer-controlled player. As Code Maker it picks a
+// random code; as Code Breaker it uses a solver.Solver, which only ever
+// learns the feedback in the round's history.
 type Computer struct {
-	rng *rand.Rand
+	rng    *rand.Rand
+	solver *solver.Solver // the current round's solver; nil before the first guess
+	seen   int            // how many history turns the solver has been told about
 }
 
 // Go note: compile-time check that *Computer can sit in a game.Seat.
@@ -26,8 +26,7 @@ var _ game.Participant = (*Computer)(nil)
 //
 // Go note: the generator is passed in ("injected") rather than created
 // here. That puts the caller in control of randomness: the app seeds it
-// from the clock, and tests use a fixed seed to get the same codes every
-// run.
+// at start-up, and tests use a fixed seed to get the same codes every run.
 func NewComputer(rng *rand.Rand) *Computer {
 	return &Computer{rng: rng}
 }
@@ -37,8 +36,26 @@ func (c *Computer) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Co
 	return code.Random(c.rng), nil
 }
 
-// Guess always returns ErrCannotBreak for now. It is here so a Computer
-// satisfies game.Participant; v0.4.0 replaces it with the solver.
+// Guess returns the solver's next guess for this round.
+//
+// An empty history means a new round, so the solver starts fresh. Then
+// only the turns it hasn't seen yet are passed to it, so each turn's
+// feedback is used exactly once. If history is somehow shorter than what
+// the solver has seen, it starts again and replays all of it.
+//
+// It returns solver.ErrNoCandidates if no code fits the feedback, which
+// can't happen when the game computes the feedback.
 func (c *Computer) Guess(ctx context.Context, info game.RoundInfo, history []game.Turn) (code.Code, error) {
-	return code.Code{}, ErrCannotBreak
+	if c.solver == nil || len(history) == 0 || len(history) < c.seen {
+		c.solver = solver.New(c.rng)
+		c.seen = 0
+	}
+	// Go note: history[c.seen:] is a slice of the turns from index c.seen
+	// to the end: the ones added since the last call. Slicing doesn't copy
+	// anything; it's a new view onto the same elements.
+	for _, t := range history[c.seen:] {
+		c.solver.Update(t.Guess, t.Feedback)
+	}
+	c.seen = len(history)
+	return c.solver.Next()
 }

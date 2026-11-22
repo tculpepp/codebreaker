@@ -2,7 +2,7 @@
 
 A terminal version of the Code Breaker board game, written in Go. Two players take turns: one makes a secret code of 5 different colors, the other tries to break it in 12 guesses or fewer. The breaker scores more for solving in fewer rows, and the first player to reach 30 points wins.
 
-> Status: early development. v0.3.0 is the first playable version: a Single game in which you break the computer's code. Full matches and playing against another person come next.
+> Status: early development. v0.4.0 plays against the computer: a full match (first to 30 points, with roles swapping each round) or a Single game in either role. Playing against another person comes next.
 
 ## Play
 
