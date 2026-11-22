@@ -1,0 +1,24 @@
+# Build output
+/bin/
+/codebreaker
+*.exe
+
+# Test and coverage artifacts
+*.test
+*.out
+coverage.html
+
+# Fuzz cache written by `go test -fuzz` (the seed corpus in testdata/fuzz is kept)
+/internal/**/testdata/fuzz/**/cache/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local Claude settings
+.claude/settings.local.json
+
+# Symlink to the shared AI context repo (absolute path; machine-specific)
+AGENTS.md
