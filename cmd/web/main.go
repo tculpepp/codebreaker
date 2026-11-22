@@ -11,6 +11,7 @@ package main
 import (
 	"context"
 	"math/rand/v2"
+	"time"
 
 	"codebreaker/internal/web"
 	"codebreaker/internal/web/bridge"
@@ -26,7 +27,9 @@ import (
 func main() {
 	// A fresh seed every visit, so every game is different.
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	s := web.NewSession(rng, bridge.Render)
+	// The computer pauses this long before each guess, so its rows can be
+	// watched (Web App Requirement 5).
+	s := web.NewSession(rng, web.Delay(700*time.Millisecond), bridge.Render)
 	release := bridge.Listen(s)
 	defer release()
 	// Run only ever returns with an error, so reaching the next line

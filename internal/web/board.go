@@ -40,9 +40,11 @@ func (b *Board) TurnPlayed(info game.RoundInfo, turn game.Turn) {
 }
 
 // RoundEnded implements game.Observer. It keeps the result for the
-// summary screen.
-func (b *Board) RoundEnded(res game.RoundResult, _ [2]game.Seat) {
+// summary screen, and the players' new scores for the board's header.
+func (b *Board) RoundEnded(res game.RoundResult, seats [2]game.Seat) {
 	b.result = &res
+	b.info.Maker = seats[res.MakerIdx]
+	b.info.Breaker = seats[res.BreakerIdx]
 }
 
 // MatchEnded implements game.Observer. It keeps the standings for the

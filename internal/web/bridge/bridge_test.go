@@ -49,7 +49,7 @@ func TestListen(t *testing.T) {
 	logError = func(msg string) { logged = append(logged, msg) }
 	t.Cleanup(func() { logError = consoleError })
 
-	s := web.NewSession(rand.New(rand.NewPCG(1, 1)), Render)
+	s := web.NewSession(rand.New(rand.NewPCG(1, 1)), web.Delay(0), Render)
 	release := Listen(s)
 	defer release()
 	go s.Run(t.Context())
@@ -60,7 +60,7 @@ func TestListen(t *testing.T) {
 	send := js.Global().Get("codebreakerSend")
 	send.Invoke(`{"kind":"dance"}`)
 	send.Invoke(`{"kind":"text","text":"Tom"}`)
-	if v := decode(t, next(t, got)); v.Screen != web.ScreenMenu || !strings.Contains(v.Lines[0], "Tom") {
+	if v := decode(t, next(t, got)); v.Screen != web.ScreenMenu || v.Title != "Main menu" {
 		t.Errorf("after the name: %+v", v)
 	}
 	if len(logged) != 1 || !strings.Contains(logged[0], "unknown kind") {

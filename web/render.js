@@ -48,7 +48,8 @@ function el(tag, attrs, ...children) {
       node.setAttribute(name, value === true ? "" : value);
     }
   }
-  for (const child of children.flat()) {
+  // Children may be nested lists (from map), to any depth.
+  for (const child of children.flat(Infinity)) {
     if (child != null && child !== false) {
       node.append(child);
     }
@@ -82,6 +83,7 @@ const SCREENS = {
   menu: drawMenu,
   board: drawBoard,
   secret: drawBoard,
+  summary: drawBoard,
   result: drawBoard,
   help: drawHelp,
 };
@@ -158,12 +160,13 @@ function drawHelp(v) {
   ];
 }
 
-// drawBoard draws the board screens: playing (board), making a secret
-// (secret) and the end of a game (result).
+// drawBoard draws the board screens: playing or watching the computer
+// play (board), making a secret (secret), the end of a round in a match
+// (summary) and the end of a game (result).
 function drawBoard(v) {
   const b = v.board;
-  const playing = v.screen !== "result";
-  const title = v.screen === "secret" ? v.title : b.title;
+  const playing = v.screen === "board" || v.screen === "secret";
+  const title = v.title || b.title;
   const out = [topbar(title, playing)];
 
   if (v.screen !== "secret") {
@@ -182,6 +185,8 @@ function drawBoard(v) {
     ...lines(v),
     el("p", { class: "message", role: "alert" }, v.message || ""),
     v.input.palette && palette(v),
+    v.input.skip && el("div", { class: "choices" },
+      el("button", { "data-focus": true, onclick: () => send({ kind: "skip" }) }, "Skip to the end of the round")),
     choices(v.menu));
   out.push(el("div", { class: "play" }, left, right));
   return out;
@@ -210,7 +215,9 @@ function boardRows(v) {
     rows.push(row(r.row, r.guess, r.feedback, ""));
   }
   if (b.draft) {
-    rows.push(row(rows.length + 1, b.draft, null, "current"));
+    // A secret being made isn't a numbered row.
+    const label = v.screen === "secret" ? "Code" : "";
+    rows.push(row(rows.length + 1, b.draft, null, "current", label));
   }
   if (v.screen !== "secret") {
     for (let n = rows.length + 1; n <= b.maxRows; n++) {
@@ -263,7 +270,9 @@ function palette(v) {
 }
 
 // The keyboard: color letters, Backspace to undo, Enter to submit, ? for
-// help and Escape to close it. Typing in the name box is left alone.
+// help and Escape to close it. Typing in the name box is left alone, and
+// on other screens Enter presses the focused button (such as Skip, or the
+// first menu choice), as browsers do.
 document.addEventListener("keydown", (e) => {
   if (!view || e.ctrlKey || e.metaKey || e.altKey || e.target.tagName === "INPUT") {
     return;

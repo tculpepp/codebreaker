@@ -25,6 +25,7 @@ var _ game.Participant = (*Tapper)(nil)
 // player's taps until they Submit a valid one that isn't a repeat. Quit
 // returns ErrQuit.
 func (t *Tapper) Guess(ctx context.Context, info game.RoundInfo, history []game.Turn) (code.Code, error) {
+	t.s.ownSecret = nil // the player's own code belongs to the round they made it for
 	prompt := fmt.Sprintf("Row %d of %d", len(history)+1, info.MaxRows)
 	return t.build(ctx, func(c code.Code) error { return game.CheckRepeat(history, c) },
 		func(d *Draft, msg string) View {
@@ -41,7 +42,7 @@ func (t *Tapper) Guess(ctx context.Context, info game.RoundInfo, history []game.
 // MakeSecret shows the secret screen and builds a code from the player's
 // taps until they Submit a valid one. Quit returns ErrQuit.
 func (t *Tapper) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code, error) {
-	return t.build(ctx, func(code.Code) error { return nil },
+	c, err := t.build(ctx, func(code.Code) error { return nil },
 		func(d *Draft, msg string) View {
 			return View{
 				Screen:  ScreenSecret,
@@ -52,6 +53,12 @@ func (t *Tapper) MakeSecret(ctx context.Context, info game.RoundInfo) (code.Code
 				Input:   InputView{Palette: true, Undo: true, Submit: true},
 			}
 		})
+	if err == nil {
+		// Remembered so the board can show the player their own code
+		// while the computer tries to break it.
+		t.s.ownSecret = &c
+	}
+	return c, err
 }
 
 // build runs the draft: it shows view after every event, with a message

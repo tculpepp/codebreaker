@@ -206,7 +206,7 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 |---|---|---|
 | ✅ v1.2.0 | **Groundwork.** Move friendly messages to `internal/message` (terminal golden files unchanged). Add `internal/web` with `View`, `Event`, `Draft` and `Board`. Measure the wasm size and the solver's speed. Add a CI job running the shared tests as WebAssembly. | `internal/web` builds Views for a scripted round at 100% coverage. Terminal unchanged. |
 | ✅ v1.3.0 | **First playable in the browser:** `Session` (Single game, human breaks the computer's code), `Tapper`, `bridge`, `cmd/web`, `web/index.html`, `render.js`, `style.css`, `make web` and `make serve`. | Play a Single game against the computer in Chrome at localhost, by tapping and by keyboard. |
-| v1.4.0 | **All of the game:** every menu (match, Normal/Easy, roles, coin flip), computer as Breaker with `Pacer` and Skip, round and match summaries, help, quit with standings, play again. | Everything a terminal player against the computer can do, the web player can do. |
+| ✅ v1.4.0 | **All of the game:** every menu (match, Normal/Easy, roles, coin flip), computer as Breaker with `Pacer` and Skip, round and match summaries, help, quit with standings, play again. | Everything a terminal player against the computer can do, the web player can do. |
 | v1.5.0 | **Human vs Human:** names, the secret screen, the handoff card, "I'm ready" (D21). | A scripted Human vs Human match passes, and the secret never appears in a Breaker's View (tested). |
 | v2.0.0 | **Installable and published:** manifest, icons, service worker with versioned cache and update prompt, accessibility pass, README section ("Play in the browser / on a Chromebook"), Pages deploy workflow, the manual checklist done on a real Chromebook. | Installed on a Chromebook from the published URL, launched from the launcher, a full match played offline. |
 
@@ -253,5 +253,16 @@ Versions follow SemVer. These are new features with no breaking changes to the t
 - `tools/serve`: a static server with `Cache-Control: no-store` (its handler is tested; `main` isn't, like `cmd/codebreaker`). `make web` builds `dist/` (4.4 MB wasm), `make serve` runs it at http://localhost:8080. `make vet`/`make lint` also check the WebAssembly-only code, and CI builds `dist/` and checks the 6 MB budget.
 - Checked in headless Chrome (driven over the DevTools Protocol) at 440×900 and 1366×650: name, line-up, tapping and typing colors, Enter, the duplicate message, Undo, help and Escape, Quit, and the result screen, with no console errors. Then checked again in a real Chrome window through the Claude in Chrome extension: keyboard play, tapping, help over a half-built row, and the remembered name (now selected, so typing replaces it). Help lists one scoring range per line, so a range never wraps mid-way.
 
-**Next: v1.4.0**, all of the game: menus, Normal/Easy, the computer as Breaker with paced rows, matches, help, quit and play again (§10).
+**v1.4.0 (all of the game against the computer) is done.** How it differs from the sketches above:
+- Flow: name → main menu (Match, Single game) → Difficulty (Normal, Easy) → role (Single only: break, make, flip a coin) → line-up with the coin flip → play. There's no Quit in the main menu (closing the tab is enough), and no opponent menu until v1.5.0.
+- The menu flow is a state machine of functions: each step returns the next step (`type step func(ctx) (step, error)`).
+- A match is played with `Match.PlayRound`, one round at a time, so a summary screen ("Round N over", the round's result, the scores, the secret, "Next round") can come between rounds. The result screen offers "Play again" (the same game) or "Main menu".
+- `Pacer` is a function type (`func() <-chan struct{}`); `Delay(d)` is the real one, and the browser uses 700 ms. Tests use one that's instant and one that never ends (until Skip). `pacedComputer` wraps `player.Computer`, showing the board and pausing before each guess. Skip makes the rest of that round's guesses instant; Quit during a pause stops the game. Waiting for "an event or the end of the pause" reuses the event loop: `nextUntil` adds the pause's channel to the same `select`.
+- While the computer breaks the player's code, the board shows that code as the "Secret code" row.
+- `Board.RoundEnded` updates the seats' scores, so summaries show the new totals.
+- The page: a Skip button, the summary screen, and the secret row labeled "Code". A bug where the score line showed "[object HTMLSpanElement]" (nested lists weren't fully flattened) was found in the browser check and fixed.
+- The web package is still at 100% coverage. The test player in `TestSessionMatch` solves codes with the real solver, reading the feedback from each View, so whole matches run in tests.
+- Checked in headless Chrome at 1366×650: menus, making a code, watching paced rows, Skip, the result, Main menu, the match line-up, a round summary, and Quit's standings, with no console errors. Then checked in a real Chrome window through the Claude in Chrome extension: a Match on Easy (coin flip, typing a secret, watching paced rows with Easy marks, the round summary and scores, the next round with roles swapped, a guess, Quit's standings), with no console errors.
+
+**Next: v1.5.0**, Human vs Human (§10).
 
